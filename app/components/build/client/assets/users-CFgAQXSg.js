@@ -1,0 +1,6 @@
+import{o as e}from"./chunk-NL6KNZEE-7k8Z-Yvn.js";import{c as r}from"./button-B8Hphn8C.js";import{c as s}from"./createLucideIcon-CHxtwjSd.js";function i({className:a,...t}){return e.jsx("div",{"data-slot":"card",className:r("bg-card text-card-foreground flex flex-col gap-6 rounded-xl border py-6 shadow-sm",a),...t})}function l({className:a,...t}){return e.jsx("div",{"data-slot":"card-header",className:r("flex flex-col gap-1.5 px-6",a),...t})}function x({className:a,...t}){return e.jsx("div",{"data-slot":"card-title",className:r("leading-none font-semibold",a),...t})}function u({className:a,...t}){return e.jsx("div",{"data-slot":"card-description",className:r("text-muted-foreground text-sm",a),...t})}function f({className:a,...t}){return e.jsx("div",{"data-slot":"card-content",className:r("px-6",a),...t})}/**
+ * @license lucide-react v0.515.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const d=[["path",{d:"M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2",key:"1yyitq"}],["path",{d:"M16 3.128a4 4 0 0 1 0 7.744",key:"16gr8j"}],["path",{d:"M22 21v-2a4 4 0 0 0-3-3.87",key:"kshegd"}],["circle",{cx:"9",cy:"7",r:"4",key:"nufk8"}]],m=s("users",d);export{i as C,m as U,f as a,l as b,x as c,u as d};

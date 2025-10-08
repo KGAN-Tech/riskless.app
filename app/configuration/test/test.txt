@@ -1,0 +1,21 @@
+const isON = checkSecurity([
+  {
+    key: "local1",
+    type: "local",
+    client: "http://localhost:5173",
+    isOn: false,
+  },
+  {
+    key: "dev1",
+    type: "development",
+    client: "https://healthlink-develop.web.app",
+    isOn: true,
+  },
+  {
+    key: "test1",
+    type: "test",
+    client: "https://healthlink-sandbox.web.app",
+    isOn: true,
+  },
+]);
+

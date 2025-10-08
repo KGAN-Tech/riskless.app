@@ -1,0 +1,1 @@
+import{a as t}from"./api.client-ze5lrY9D.js";const f={getAll:p=>t.getAll("/pkrf",p??{}),get:p=>t.get(`/pkrf/${p}`),update:(p,e)=>t.put("/pkrf",e),create:p=>t.post("/pkrf",p),exportPKRF:p=>t.get(`/pkrf/${p}/export`)};export{f as p};

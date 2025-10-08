@@ -1,0 +1,515 @@
+import { useEffect, useMemo, useState } from "react";
+import { EncounterLayout } from "~/app/components/templates/layout/encounter.layout";
+import { VitalsForm } from "~/app/components/molecules/vitals.form";
+import { EncounterStepper } from "../../../../components/organisms/encounter/encounter.stepper";
+interface Patient {
+  id: string;
+  name: string;
+  initials: string;
+  queueNumber: string;
+  status: "waiting" | "serving" | "completed" | "skipped";
+  estimatedWait?: string;
+  priority?: "high" | "normal" | "low";
+}
+
+interface ProfileData {
+  name: string;
+  initials: string;
+  age: number;
+  gender: string;
+  bloodType: string;
+  dateOfBirth: string;
+  phone: string;
+  address: string;
+  lastVisit: string;
+  medicalAlerts: string[];
+  emergencyContact: { name: string; relationship: string; phone: string };
+}
+
+const initialVitalsData = {
+  bloodPressure: {
+    systolic: "",
+    diastolic: "",
+  },
+  heartRate: "",
+  respiratoryRate: "",
+  temperature: "",
+  bloodType: "",
+  findings: {
+    heent: [""],
+    chestBreastLungs: [""],
+    heart: [""],
+    abdomen: [""],
+    genitourinary: [""],
+    dre: [""],
+    extremities: [""],
+    neurological: [""],
+  },
+  labImaging: {
+    facilityType: "within" as "within",
+    date: "",
+    fee: "",
+    fbsMgDl: "",
+    fbsMmol: "",
+    rbsMgDl: "",
+    rbsMmol: "",
+  },
+  chd: {
+    highFatHighSalt: "no" as "no",
+    fiberVeg: "no" as "no",
+    fiberFruits: "no" as "no",
+    physicalActivity: "no" as "no",
+    diabetesDiagnosed: "unknown" as "unknown",
+  },
+};
+
+export default function CounterVitalsPage() {
+  const [patients, setPatients] = useState<Patient[]>([
+    {
+      id: "1",
+      name: "Juan Delacruz",
+      initials: "JD",
+      queueNumber: "01",
+      status: "serving",
+      priority: "high",
+    },
+    {
+      id: "2",
+      name: "Lolona",
+      initials: "L",
+      queueNumber: "20",
+      status: "waiting",
+      estimatedWait: "15min",
+      priority: "normal",
+    },
+    {
+      id: "3",
+      name: "Maria Santos",
+      initials: "MS",
+      queueNumber: "03",
+      status: "waiting",
+      estimatedWait: "30min",
+      priority: "normal",
+    },
+    {
+      id: "4",
+      name: "Pedro Garcia",
+      initials: "PG",
+      queueNumber: "05",
+      status: "waiting",
+      estimatedWait: "45min",
+      priority: "low",
+    },
+    {
+      id: "5",
+      name: "Carlos Reyes",
+      initials: "CR",
+      queueNumber: "06",
+      status: "waiting",
+      estimatedWait: "50min",
+      priority: "normal",
+    },
+    {
+      id: "6",
+      name: "Ana Lopez",
+      initials: "AL",
+      queueNumber: "07",
+      status: "waiting",
+      estimatedWait: "55min",
+      priority: "normal",
+    },
+    {
+      id: "7",
+      name: "Mark Villanueva",
+      initials: "MV",
+      queueNumber: "08",
+      status: "waiting",
+      estimatedWait: "60min",
+      priority: "low",
+    },
+    {
+      id: "8",
+      name: "Grace Tan",
+      initials: "GT",
+      queueNumber: "09",
+      status: "waiting",
+      estimatedWait: "65min",
+      priority: "normal",
+    },
+    {
+      id: "9",
+      name: "Ramon Cruz",
+      initials: "RC",
+      queueNumber: "10",
+      status: "waiting",
+      estimatedWait: "70min",
+      priority: "normal",
+    },
+    {
+      id: "10",
+      name: "Sofia Mendoza",
+      initials: "SM",
+      queueNumber: "11",
+      status: "waiting",
+      estimatedWait: "75min",
+      priority: "normal",
+    },
+    {
+      id: "11",
+      name: "Daniel Perez",
+      initials: "DP",
+      queueNumber: "12",
+      status: "waiting",
+      estimatedWait: "80min",
+      priority: "low",
+    },
+    {
+      id: "12",
+      name: "Irene Gomez",
+      initials: "IG",
+      queueNumber: "13",
+      status: "waiting",
+      estimatedWait: "85min",
+      priority: "normal",
+    },
+    {
+      id: "13",
+      name: "Noel Rivera",
+      initials: "NR",
+      queueNumber: "14",
+      status: "waiting",
+      estimatedWait: "90min",
+      priority: "normal",
+    },
+    {
+      id: "14",
+      name: "Bea Santos",
+      initials: "BS",
+      queueNumber: "15",
+      status: "waiting",
+      estimatedWait: "95min",
+      priority: "normal",
+    },
+  ]);
+
+  const [currentPatientId, setCurrentPatientId] = useState<string>("1");
+  const [vitalsData, setvitalsData] = useState(initialVitalsData);
+
+  // Reset interview when switching patients
+  useEffect(() => {
+    setvitalsData(initialVitalsData);
+  }, [currentPatientId]);
+  const stepKeys = ["vitals", "findings", "lab", "chd"] as const;
+  const [currentStep, setCurrentStep] = useState(0);
+
+  const patientDetails: Record<string, any> = useMemo(
+    () => ({
+      "1": {
+        age: 34,
+        gender: "Male",
+        bloodType: "A+",
+        dateOfBirth: "March 15, 1989",
+        phone: "+63 912 345 6789",
+        address: "123 Main St, Quezon City, Philippines",
+        lastVisit: "January 15, 2024",
+        medicalAlerts: ["Hypertension", "Allergic to Penicillin"],
+        emergencyContact: {
+          name: "Maria Delacruz",
+          relationship: "Wife",
+          phone: "+63 918 765 4321",
+        },
+      },
+      "2": {
+        age: 29,
+        gender: "Female",
+        bloodType: "B+",
+        dateOfBirth: "May 21, 1995",
+        phone: "+63 917 111 2222",
+        address: "456 Mabini St, Manila, Philippines",
+        lastVisit: "February 10, 2024",
+        medicalAlerts: [],
+        emergencyContact: {
+          name: "Ana Cruz",
+          relationship: "Sister",
+          phone: "+63 917 555 0000",
+        },
+      },
+      "3": {
+        age: 41,
+        gender: "Female",
+        bloodType: "O-",
+        dateOfBirth: "December 3, 1982",
+        phone: "+63 915 333 4444",
+        address: "789 Rizal Ave, Pasig, Philippines",
+        lastVisit: "March 2, 2024",
+        medicalAlerts: ["Diabetes Mellitus"],
+        emergencyContact: {
+          name: "Jose Santos",
+          relationship: "Husband",
+          phone: "+63 918 333 2222",
+        },
+      },
+      "4": {
+        age: 38,
+        gender: "Male",
+        bloodType: "AB+",
+        dateOfBirth: "August 9, 1986",
+        phone: "+63 916 222 3333",
+        address: "101 Bonifacio St, Makati, Philippines",
+        lastVisit: "November 30, 2023",
+        medicalAlerts: [],
+        emergencyContact: {
+          name: "Lara Garcia",
+          relationship: "Wife",
+          phone: "+63 917 888 9999",
+        },
+      },
+    }),
+    []
+  );
+
+  const activePatient: Patient | undefined = useMemo(() => {
+    return (
+      patients.find((p) => p.id === currentPatientId) ||
+      patients.find((p) => p.status === "serving") ||
+      patients[0]
+    );
+  }, [patients, currentPatientId]);
+
+  const profileData = useMemo(() => {
+    if (!activePatient) return null;
+    const more = patientDetails[activePatient.id] || {};
+    return {
+      name: activePatient.name,
+      initials: activePatient.initials,
+      age: more.age ?? 0,
+      gender: more.gender ?? "-",
+      bloodType: more.bloodType ?? "-",
+      dateOfBirth: more.dateOfBirth ?? "-",
+      phone: more.phone ?? "-",
+      address: more.address ?? "-",
+      lastVisit: more.lastVisit ?? "-",
+      medicalAlerts: more.medicalAlerts ?? [],
+      emergencyContact: more.emergencyContact ?? {
+        name: "-",
+        relationship: "-",
+        phone: "-",
+      },
+    };
+  }, [activePatient, patientDetails]);
+
+  const serveNext = () => {
+    setPatients((prev) => {
+      const updated = prev.map((p) =>
+        p.status === "serving" ? { ...p, status: "completed" as const } : p
+      );
+      const waiting = updated.find((p) => p.status === "waiting");
+      if (waiting) {
+        setCurrentPatientId(waiting.id);
+        return updated.map((p) =>
+          p.id === waiting.id ? { ...p, status: "serving" as const } : p
+        );
+      }
+      return updated;
+    });
+  };
+
+  const skipCurrent = () => {
+    setPatients((prev) => {
+      const serving = prev.find((p) => p.status === "serving");
+      if (!serving) return prev;
+      let updated = prev.map((p) =>
+        p.id === serving.id ? { ...p, status: "skipped" as const } : p
+      );
+      const nextWaiting = updated.find((p) => p.status === "waiting");
+      if (nextWaiting) {
+        setCurrentPatientId(nextWaiting.id);
+        updated = updated.map((p) =>
+          p.id === nextWaiting.id ? { ...p, status: "serving" as const } : p
+        );
+      }
+      return updated;
+    });
+  };
+
+  const recallSkipped = () => {
+    setPatients((prev) => {
+      const firstSkipped = prev.find((p) => p.status === "skipped");
+      if (!firstSkipped) return prev;
+      return prev.map((p) =>
+        p.id === firstSkipped.id ? { ...p, status: "waiting" as const } : p
+      );
+    });
+  };
+
+  const handleBack = () => {
+    if (typeof window !== "undefined") {
+      if (window.history.length > 1) window.history.back();
+      else window.location.href = "/";
+    }
+  };
+
+  const queueLabel = activePatient
+    ? `Queue #${activePatient.queueNumber} • ${activePatient.status
+        .charAt(0)
+        .toUpperCase()}${activePatient.status.slice(1)}`
+    : undefined;
+
+  // Sync tab with query string (?tab=vitals|findings|lab|chd)
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const readFromQuery = () => {
+      const params = new URLSearchParams(window.location.search);
+      const tab = params.get("tab");
+      const idx = tab ? stepKeys.indexOf(tab as any) : -1;
+      if (idx >= 0 && idx !== currentStep) setCurrentStep(idx);
+    };
+    readFromQuery();
+    const onPop = () => readFromQuery();
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [currentStep]);
+
+  const updateQueryStep = (nextIndex: number) => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    params.set("tab", stepKeys[nextIndex]);
+    const newUrl = `${window.location.pathname}?${params.toString()}`;
+    window.history.replaceState(null, "", newUrl);
+  };
+
+  const handleStepChange = (index: number) => {
+    setCurrentStep(index);
+    updateQueryStep(index);
+  };
+
+  const handleSave = () => {
+    console.log("Saving vitals data:", vitalsData);
+    // Here you would typically save to your backend
+    alert("Vitals saved successfully!");
+  };
+
+  // Validation functions for each step
+  const stepValidators = [
+    // Step 0: Vitals
+    (data: any) => {
+      const errors: string[] = [];
+      if (!data.bloodPressure.systolic || !data.bloodPressure.diastolic) {
+        errors.push("Blood pressure (systolic and diastolic) is required");
+      }
+      if (!data.heartRate) {
+        errors.push("Heart rate is required");
+      }
+      if (!data.respiratoryRate) {
+        errors.push("Respiratory rate is required");
+      }
+      if (!data.temperature) {
+        errors.push("Temperature is required");
+      }
+      return errors;
+    },
+    // Step 1: Findings
+    (data: any) => {
+      const errors: string[] = [];
+      const sections = [
+        "heent",
+        "chestBreastLungs",
+        "heart",
+        "abdomen",
+        "genitourinary",
+        "dre",
+        "extremities",
+        "neurological",
+      ];
+      sections.forEach((section) => {
+        const findings = (data.findings as any)[section];
+        if (
+          !findings ||
+          findings.length === 0 ||
+          (findings.length === 1 && findings[0] === "")
+        ) {
+          errors.push(
+            `At least one finding must be selected for ${section
+              .replace(/([A-Z])/g, " $1")
+              .toLowerCase()}`
+          );
+        }
+      });
+      return errors;
+    },
+    // Step 2: Lab Imaging
+    (data: any) => {
+      const errors: string[] = [];
+      if (!data.labImaging.date) {
+        errors.push("Laboratory/Imaging date is required");
+      }
+      if (!data.labImaging.fee) {
+        errors.push("Laboratory/Imaging fee is required");
+      }
+      return errors;
+    },
+    // Step 3: CHD
+    (data: any) => {
+      const errors: string[] = [];
+      const chdFields = [
+        "highFatHighSalt",
+        "fiberVeg",
+        "fiberFruits",
+        "physicalActivity",
+        "diabetesDiagnosed",
+      ];
+      chdFields.forEach((field) => {
+        if (!(data.chd as any)[field] || (data.chd as any)[field] === "") {
+          errors.push(
+            `${field.replace(/([A-Z])/g, " $1").toLowerCase()} must be answered`
+          );
+        }
+      });
+      return errors;
+    },
+  ];
+
+  return (
+    <EncounterLayout
+      patients={patients}
+      onPatientsReorder={setPatients}
+      onServeNext={serveNext}
+      onSkipPatient={skipCurrent}
+      onRecallPatient={recallSkipped}
+      currentPatientId={currentPatientId}
+      topBarTitle="Vitals"
+      onBack={handleBack}
+      providers={["Dr. Jose Rizal", "Dr. Juan Luna"]}
+      selectedProvider="Dr. Jose Rizal"
+      onProviderChange={(p) => console.log("Selected provider:", p)}
+      time="2:02:42 PM"
+      profileData={profileData as ProfileData}
+      queueLabel={queueLabel}
+      onMedicineClick={() => console.log("Medicine clicked")}
+      onLabClick={() => console.log("Lab clicked")}
+      onCertificateClick={() => console.log("Certificate clicked")}
+      onCancel={handleSave}
+      onSubmit={handleSave}
+      cancelLabel="Cancel"
+      submitLabel="Save Vitals"
+      submitDisabled={false}
+    >
+      <div className="mx-auto space-y-2">
+        <EncounterStepper
+          currentStep={currentStep}
+          steps={["Vitals", "Pertinent Findings", "Laboratory Imaging", "CHD"]}
+          onStepChange={handleStepChange}
+        />
+
+        <VitalsForm
+          vitalsData={vitalsData}
+          onVitalsChange={(data: any) => setvitalsData(data as any)}
+          vitals={currentStep === 0}
+          pertinentFindings={currentStep === 1}
+          laborartoryImaging={currentStep === 2}
+          chd={currentStep === 3}
+        />
+      </div>
+    </EncounterLayout>
+  );
+}

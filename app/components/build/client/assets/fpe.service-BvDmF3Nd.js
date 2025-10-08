@@ -1,0 +1,1 @@
+import{a as t}from"./api.client-ze5lrY9D.js";const l={getAll:e=>t.getAll("/fpe",e??{}),get:e=>t.get(`/fpe/${e}`),update:(e,p)=>t.put(`/fpe/${e}`,p),create:e=>t.post("/fpe",e),delete:e=>t.delete(`/fpe/${e}`),exportFPE:e=>t.get(`/fpe/${e}/export`)};export{l as f};
