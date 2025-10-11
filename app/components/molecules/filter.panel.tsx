@@ -1,9 +1,12 @@
-"use client";
-
 import { useEffect, useState } from "react";
 import { Badge } from "@/components/atoms/badge";
 import { Button } from "@/components/atoms/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/atoms/card";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/atoms/card";
 import { Checkbox } from "@/components/atoms/checkbox";
 import { ScrollArea } from "@/components/atoms/scroll-area";
 import { Filter, X } from "lucide-react";
@@ -35,7 +38,8 @@ export default function FilterPanel({
   currentFilters,
   filterFields,
 }: FilterPanelProps) {
-  const [localFilters, setLocalFilters] = useState<LibraryFilterState>(currentFilters);
+  const [localFilters, setLocalFilters] =
+    useState<LibraryFilterState>(currentFilters);
 
   useEffect(() => {
     setLocalFilters(currentFilters);
@@ -67,7 +71,10 @@ export default function FilterPanel({
     onOpenChange(false);
   };
 
-  const activeCount = Object.values(localFilters).reduce((sum, arr) => sum + arr.length, 0);
+  const activeCount = Object.values(localFilters).reduce(
+    (sum, arr) => sum + arr.length,
+    0
+  );
 
   if (!open) return null;
 
@@ -100,7 +107,9 @@ export default function FilterPanel({
             {filterFields.map((field) => (
               <Card key={field.key}>
                 <CardHeader>
-                  <CardTitle className="text-sm font-medium">{field.label}</CardTitle>
+                  <CardTitle className="text-sm font-medium">
+                    {field.label}
+                  </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
@@ -111,7 +120,9 @@ export default function FilterPanel({
                       >
                         <Checkbox
                           checked={localFilters[field.key].includes(option)}
-                          onCheckedChange={() => toggleOption(field.key, option)}
+                          onCheckedChange={() =>
+                            toggleOption(field.key, option)
+                          }
                         />
                         <span>{option}</span>
                       </label>
