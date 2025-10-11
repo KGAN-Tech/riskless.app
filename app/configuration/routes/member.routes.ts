@@ -1,7 +1,11 @@
 import { route, type RouteConfigEntry } from "@react-router/dev/routes";
 
 export const memberRoutes: RouteConfigEntry[] = [
+  route("/activity", "./routes/__activity.route.tsx"),
+  route("/map", "./routes/__map.route.tsx"),
+  route("/notification", "./routes/__notification.route.tsx"),
   route("users/home", "./routes/users.home.page.tsx"),
+  route("/account", "./routes/__account.route.tsx"),
   route("/medical-record/FPE", "./routes/users.fpe.page.tsx"),
   route("/consultation", "./routes/users.page.consultation.tsx"),
   route("/consultation/:consultationId/emr", "./routes/users.emr.page.tsx"),

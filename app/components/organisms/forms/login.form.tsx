@@ -34,7 +34,7 @@ export function LoginForm() {
       onSubmit={handleSubmit}
       className="flex flex-col gap-4 p-6 bg-card rounded-2xl shadow-md w-full max-w-md"
     >
-      <h2 className="text-2xl font-bold text-center">Sign in to HealthLink</h2>
+      <h2 className="text-2xl font-bold text-center">Sign in to Riskless</h2>
       <p className="text-center text-muted-foreground text-sm">
         Access your personalized dashboard
       </p>
@@ -54,7 +54,7 @@ export function LoginForm() {
       </div>
 
       {/* Auth Method Switch */}
-      <div className="flex gap-2">
+      {/* <div className="flex gap-2">
         <button
           type="button"
           onClick={() => handleAuthMethodChange("text")}
@@ -79,7 +79,7 @@ export function LoginForm() {
           <Hash size={16} />
           MPIN
         </button>
-      </div>
+      </div> */}
 
       {/* Password / MPIN input */}
       <div>

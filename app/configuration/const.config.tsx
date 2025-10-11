@@ -1,4 +1,8 @@
-import { MAIN_NAVIGATION, PORTAL_NAV } from "./const/navigation.const";
+import {
+  MAIN_NAVIGATION,
+  PORTAL_NAV,
+  USER_NAV,
+} from "./const/navigation.const";
 import { ENCOUNTER_FEATURES_TAB, PATIENT_PORTAL_TAB } from "./const/tab.const";
 import { MEDICAL_HISTORY_LIBRARY } from "./const/library.const";
 import { REGISTRATION_METHOD } from "./const/method.const";
@@ -17,6 +21,7 @@ export const APP = {
 export const NAVIGATION = {
   MAIN: MAIN_NAVIGATION,
   PORTAL: PORTAL_NAV,
+  USER: USER_NAV,
 };
 
 export const PAGE = {

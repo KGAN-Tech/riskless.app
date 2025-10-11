@@ -1,5 +1,5 @@
 import { LoginForm } from "../../../components/organisms/forms/login.form";
-import { Heart, Shield, Users } from "lucide-react";
+import { Shield, Heart, Users } from "lucide-react";
 
 export default function LoginPage() {
   return (
@@ -8,8 +8,8 @@ export default function LoginPage() {
       <header className="border-b border-border bg-card/50 backdrop-blur-sm">
         <div className="container mx-auto flex items-center justify-between py-4 px-6">
           <div className="flex items-center gap-2 text-primary font-bold text-xl">
-            <Heart className="h-6 w-6 text-primary" />
-            HealthLink
+            <Shield className="h-6 w-6 text-primary" />
+            Riskless
           </div>
           <nav className="hidden sm:flex gap-6 text-sm font-medium">
             <a href="/" className="hover:text-primary transition">
@@ -31,36 +31,27 @@ export default function LoginPage() {
         <div className="hidden lg:flex flex-1 flex-col space-y-6">
           <h1 className="text-4xl font-bold leading-tight">
             Welcome back to your{" "}
-            <span className="text-primary">health journey</span>
+            <span className="text-primary">risk-free journey</span>
           </h1>
           <p className="text-muted-foreground text-lg">
-            Access your personalized health dashboard, track your progress, and
-            connect with trusted healthcare professionals.
+            Access your secure dashboard, manage your information safely, and
+            stay protected with Riskless — your trusted safety companion.
           </p>
 
           <ul className="space-y-4">
-            {/* <li className="flex items-center gap-3">
+            <li className="flex items-center gap-3">
               <Shield className="h-5 w-5 text-primary" />
-              <span>Secure and HIPAA compliant</span>
-            </li> */}
+              <span>Advanced protection and secure login</span>
+            </li>
             <li className="flex items-center gap-3">
               <Users className="h-5 w-5 text-primary" />
-              <span>Connect with trusted healthcare providers</span>
+              <span>Connect with verified professionals</span>
             </li>
             <li className="flex items-center gap-3">
               <Heart className="h-5 w-5 text-primary" />
-              <span>Track your wellness goals</span>
+              <span>Monitor your well-being with confidence</span>
             </li>
           </ul>
-
-          {/* <div className="mt-8">
-            <a
-              href="/learn-more"
-              className="inline-block bg-primary text-white px-6 py-3 rounded-xl font-medium hover:bg-primary/90 transition"
-            >
-              Learn More
-            </a>
-          </div> */}
         </div>
 
         {/* Right Side - Login Card (always visible) */}
@@ -71,7 +62,7 @@ export default function LoginPage() {
 
       {/* Footer */}
       <footer className="border-t border-border py-4 text-center text-sm text-muted-foreground">
-        © 2024 HealthLink. All rights reserved. &nbsp;|&nbsp;
+        © 2024 Riskless. All rights reserved. &nbsp;|&nbsp;
         <a href="/privacy" className="hover:underline">
           Privacy Policy
         </a>{" "}

@@ -4,8 +4,9 @@ import AdminDashboard from "./admin.dashboard";
 import { isAuthenticated, isRole } from "../utils/auth.helper";
 
 import MainProtectedLayout from "../components/templates/layout/_main.protected.layout.v2.children";
+import { Homepage } from "../pages/private/member/users.home.page";
 import UserProtectedLayout from "../components/templates/layout/user.protected.layout.children";
-import { UserHomePage } from "../pages/private/_home/home.page";
+import { MapPage } from "../pages/private/_map/map.page";
 
 export const meta: MetaFunction = () => {
   return [
@@ -32,7 +33,8 @@ export default function UserLogin() {
       {isRole(
         ["user"],
         <UserProtectedLayout>
-          <UserHomePage />
+          {" "}
+          <MapPage />
         </UserProtectedLayout>,
         <></>
       )()}

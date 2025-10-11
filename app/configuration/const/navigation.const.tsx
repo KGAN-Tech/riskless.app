@@ -11,6 +11,10 @@ import {
   User,
   UserPlus,
   GitBranch,
+  Home,
+  Activity,
+  MapPin,
+  Bell,
 } from "lucide-react";
 
 interface SubItem {
@@ -169,6 +173,39 @@ export const PORTAL_NAV = [
     isCardDisplayed: true,
     userTypes: ["admin"],
     icon: <GitBranch className="w-12 h-12 text-blue-500" />,
+  },
+];
+
+export const USER_NAV = [
+  {
+    id: "home",
+    name: "Home",
+    path: "/",
+    icon: Home,
+  },
+  {
+    id: "activity",
+    name: "Activity",
+    path: "/activity",
+    icon: Activity,
+  },
+  {
+    id: "map",
+    name: "Map",
+    path: "/map",
+    icon: MapPin,
+  },
+  {
+    id: "notification",
+    name: "Notification",
+    path: "/notification",
+    icon: Bell,
+  },
+  {
+    id: "account",
+    name: "Account",
+    path: "/account",
+    icon: User,
   },
 ];
 
