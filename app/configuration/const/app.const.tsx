@@ -10,8 +10,8 @@ export const APP_HOSTING = [
   {
     key: "dev1",
     type: "development" as EnvType,
-    client: "https://healthlink-develop.web.app",
-    server: "https://ftcc-health-dev-api-789dc06ee50e.herokuapp.com/api",
+    client: "https://riskless-capstone.web.app",
+    server: "https://zero-api-aa3a0074fb47.herokuapp.com/api",
   },
   {
     key: "test1",
