@@ -1,12 +1,14 @@
 import type { MetaFunction } from "react-router";
 import LoginPage from "../pages/public/auth/login.page";
+
 import { isAuthenticated, isRole } from "../utils/auth.helper";
-import PortalProtectedLayout from "../components/templates/layout/portal.protected.layout.children";
-import YakapRegistrationPage from "../pages/private/registration/registration.page";
+
+import MainProtectedLayout from "../components/templates/layout/_main.protected.layout.v2.children";
+import NotificationPage from "../pages/private/notification/notification.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "Registration" },
+    { title: "Riskless | Notification" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",
@@ -14,15 +16,15 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export default function RegistrationRoute() {
+export default function NotificationRoute() {
   const Authenticated = isAuthenticated(
     // render if authenticated
     <div>
       {isRole(
         ["super_admin", "admin"],
-        <PortalProtectedLayout>
-          <YakapRegistrationPage />
-        </PortalProtectedLayout>,
+        <MainProtectedLayout>
+          <NotificationPage />
+        </MainProtectedLayout>,
         <></>
       )()}
     </div>,

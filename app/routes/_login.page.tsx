@@ -3,7 +3,7 @@ import LoginPage from "../pages/public/auth/login.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless | Login" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",

@@ -1,5 +1,5 @@
 import type { MetaFunction } from "react-router";
-import LoginPage from "../pages/public/auth/login.page";
+
 import { RegisterPage } from "../pages/public/auth/registration.page";
 
 export const meta: MetaFunction = () => {

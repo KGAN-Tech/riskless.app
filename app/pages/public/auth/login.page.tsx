@@ -11,7 +11,7 @@ export default function LoginPage() {
             <Shield className="h-6 w-6 text-primary" />
             Riskless
           </div>
-          <nav className="hidden sm:flex gap-6 text-sm font-medium">
+          {/* <nav className="hidden sm:flex gap-6 text-sm font-medium">
             <a href="/" className="hover:text-primary transition">
               Home
             </a>
@@ -21,7 +21,7 @@ export default function LoginPage() {
             <a href="/contact" className="hover:text-primary transition">
               Contact
             </a>
-          </nav>
+          </nav> */}
         </div>
       </header>
 

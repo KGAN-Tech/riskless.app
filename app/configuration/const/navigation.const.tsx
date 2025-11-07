@@ -16,6 +16,7 @@ import {
   MapPin,
   Bell,
 } from "lucide-react";
+import { FaRoad } from "react-icons/fa";
 
 interface SubItem {
   name: string;
@@ -210,58 +211,41 @@ export const USER_NAV = [
 ];
 
 export const MAIN_NAVIGATION: NavigationItem[] = [
+  // {
+  //   name: "Dashboard",
+  //   href: "/dashboard",
+  //   icon: LayoutDashboard,
+  //   userTypes: ["admin", "organization"],
+  // },
   {
-    name: "Dashboard",
-    href: "/dashboard",
-    icon: LayoutDashboard,
-    userTypes: ["admin", "hci", "physician", "presenter"],
-  },
-  {
-    name: "Portals",
-    href: "/portals",
-    icon: Puzzle,
-    userTypes: ["admin", "hci", "physician", "presenter"],
+    name: "Roads",
+    href: "/roads",
+    icon: FaRoad,
+    userTypes: ["admin", "organization"],
   },
   {
     name: "Facility",
     href: "/facility",
     icon: Hospital,
-    userTypes: ["hci"],
-  },
-  {
-    name: "Facilities",
-    href: "/facilities",
-    icon: Hospital,
     userTypes: ["admin"],
   },
+  {
+    name: "Report",
+    href: "/report",
+    icon: FileText,
+    userTypes: ["admin", "organization"],
+  },
+  {
+    name: "Notification",
+    href: "/notification-ms",
+    icon: Bell,
+    userTypes: ["admin", "organization"],
+  },
+
   {
     name: "Accounts",
-    href: "/accounts",
+    href: "/account-ms",
     icon: User,
-    userTypes: ["admin", "hci", "physician"],
-  },
-  {
-    name: "Usage",
-    href: "/usage",
-    icon: Database,
-    userTypes: ["admin", "hci"],
-  },
-  {
-    name: "Billing",
-    href: "/billing",
-    icon: Coins,
-    userTypes: ["admin", "hci"],
-  },
-  {
-    name: "Docs",
-    href: "/docs",
-    icon: FileText,
-    userTypes: ["admin", "hci", "physician", "presenter"],
-  },
-  {
-    name: "Version Control",
-    href: "/version-control",
-    icon: GitBranch,
-    userTypes: ["admin"],
+    userTypes: ["admin", "organization"],
   },
 ];

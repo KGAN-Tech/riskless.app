@@ -1,10 +1,4 @@
-import React, {
-  useEffect,
-  useState,
-  useRef,
-  useCallback,
-  useMemo,
-} from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { Phone, Download, Search } from "lucide-react";
 import { Button } from "@/components/atoms/button";
 import { Badge } from "@/components/atoms/badge";
@@ -23,10 +17,10 @@ interface EmergencyHotlinesListProps {
 
 const ITEMS_PER_PAGE = 10;
 
-const EmergencyHotlinesList: React.FC<EmergencyHotlinesListProps> = ({
+const EmergencyHotlinesList = ({
   emergencyHotlines,
   onSaveAll,
-}) => {
+}: EmergencyHotlinesListProps) => {
   const [searchTerm, setSearchTerm] = useState("");
   const [visibleHotlines, setVisibleHotlines] = useState<Hotline[]>([]);
   const [page, setPage] = useState(1);

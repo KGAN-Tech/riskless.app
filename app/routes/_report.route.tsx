@@ -5,12 +5,12 @@ import { isAuthenticated, isRole } from "../utils/auth.helper";
 
 import MainProtectedLayout from "../components/templates/layout/_main.protected.layout.v2.children";
 
-import UserProtectedLayout from "../components/templates/layout/user.protected.layout.children";
-import { ProfilePage } from "../pages/private/_profile/profile.page";
+import FacilityPage from "../pages/private/facility/facility.page";
+import ReportPage from "../pages/private/report/report.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless | Report" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",
@@ -18,24 +18,15 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export default function UserLogin() {
+export default function ReportRoute() {
   const Authenticated = isAuthenticated(
     // render if authenticated
     <div>
       {isRole(
         ["super_admin", "admin"],
         <MainProtectedLayout>
-          <></>
+          <ReportPage />
         </MainProtectedLayout>,
-        <></>
-      )()}
-
-      {isRole(
-        ["user"],
-        <UserProtectedLayout>
-          {" "}
-          <ProfilePage />
-        </UserProtectedLayout>,
         <></>
       )()}
     </div>,

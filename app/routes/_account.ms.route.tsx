@@ -7,10 +7,12 @@ import MainProtectedLayout from "../components/templates/layout/_main.protected.
 
 import UserProtectedLayout from "../components/templates/layout/user.protected.layout.children";
 import { ProfilePage } from "../pages/private/_profile/profile.page";
+import FacilityPage from "../pages/private/facility/facility.page";
+import AccountMSPage from "../pages/private/account/account.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless | Account Management System" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",
@@ -18,24 +20,15 @@ export const meta: MetaFunction = () => {
   ];
 };
 
-export default function UserLogin() {
+export default function AccountManagementSystemRoute() {
   const Authenticated = isAuthenticated(
     // render if authenticated
     <div>
       {isRole(
         ["super_admin", "admin"],
         <MainProtectedLayout>
-          <></>
+          <AccountMSPage />
         </MainProtectedLayout>,
-        <></>
-      )()}
-
-      {isRole(
-        ["user"],
-        <UserProtectedLayout>
-          {" "}
-          <ProfilePage />
-        </UserProtectedLayout>,
         <></>
       )()}
     </div>,

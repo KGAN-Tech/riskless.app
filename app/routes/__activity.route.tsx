@@ -1,12 +1,12 @@
 import type { MetaFunction } from "react-router";
 import LoginPage from "../pages/public/auth/login.page";
-import AdminDashboard from "./admin.dashboard";
+
 import { isAuthenticated, isRole } from "../utils/auth.helper";
 
 import MainProtectedLayout from "../components/templates/layout/_main.protected.layout.v2.children";
-import { Homepage } from "../pages/private/member/users.home.page";
+
 import UserProtectedLayout from "../components/templates/layout/user.protected.layout.children";
-import { MapPage } from "../pages/private/_map/map.page";
+
 import { ActivityPage } from "../pages/private/_activity/activity.page";
 
 export const meta: MetaFunction = () => {
@@ -26,7 +26,7 @@ export default function UserLogin() {
       {isRole(
         ["super_admin", "admin"],
         <MainProtectedLayout>
-          <AdminDashboard />
+          <></>
         </MainProtectedLayout>,
         <></>
       )()}
