@@ -11,7 +11,7 @@ import { ActivityPage } from "../pages/private/_activity/activity.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless | Activity" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",

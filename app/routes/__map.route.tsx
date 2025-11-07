@@ -10,7 +10,7 @@ import { MapPage } from "../pages/private/_map/map.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless | Map" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",

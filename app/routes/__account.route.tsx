@@ -10,7 +10,7 @@ import { ProfilePage } from "../pages/private/_profile/profile.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless | Profile" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",

@@ -12,7 +12,7 @@ import { NotificationPage } from "../pages/private/_notification/notification.pa
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless | Notification" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",
