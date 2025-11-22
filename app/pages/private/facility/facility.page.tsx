@@ -15,13 +15,15 @@ import {
 } from "@/components/atoms/dialog";
 import { Input } from "@/components/atoms/input";
 import { Label } from "@/components/atoms/label";
-import { Loader2, Plus, Pencil, Trash2, Trash } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash2, Trash, Menu, X } from "lucide-react";
 
 export default function FacilityPage() {
   const [facilities, setFacilities] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -51,6 +53,18 @@ export default function FacilityPage() {
     "emergency_facility",
     "others",
   ];
+
+  // Check screen size and set mobile state
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+
+    checkScreenSize();
+    window.addEventListener("resize", checkScreenSize);
+
+    return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
 
   // Fetch all facilities
   const fetchFacilities = async () => {
@@ -150,6 +164,7 @@ export default function FacilityPage() {
             ],
     });
     setOpen(true);
+    setMobileMenuOpen(false);
   };
 
   // Submit form
@@ -181,6 +196,7 @@ export default function FacilityPage() {
     try {
       await facilityService.remove(id, {});
       fetchFacilities();
+      setMobileMenuOpen(false);
     } catch (err) {
       console.error("Error deleting facility:", err);
     }
@@ -190,13 +206,110 @@ export default function FacilityPage() {
     fetchFacilities();
   }, []);
 
+  // Mobile facility card component
+  const MobileFacilityCard = ({ facility }: { facility: any }) => (
+    <Card className="mb-4">
+      <CardContent className="p-4 space-y-3">
+        <div className="flex justify-between items-start">
+          <div>
+            <h3 className="font-semibold text-lg">{facility.name}</h3>
+            <p className="text-sm text-gray-600">
+              {facility.location || "No location"}
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setMobileMenuOpen(facility.id)}
+          >
+            <Menu className="w-4 h-4" />
+          </Button>
+        </div>
+
+        <div className="grid grid-cols-2 gap-2 text-sm">
+          <div>
+            <span className="font-medium">Category:</span>{" "}
+            {facility.category || "-"}
+          </div>
+          <div>
+            <span className="font-medium">Type:</span> {facility.type || "-"}
+          </div>
+          <div>
+            <span className="font-medium">Status:</span>
+            <span
+              className={`ml-1 px-2 py-1 rounded-full text-xs ${
+                facility.status === "open"
+                  ? "bg-green-100 text-green-800"
+                  : "bg-red-100 text-red-800"
+              }`}
+            >
+              {facility.status || "-"}
+            </span>
+          </div>
+        </div>
+
+        <div>
+          <span className="font-medium text-sm">Contacts:</span>
+          {facility.contacts && facility.contacts.length > 0 ? (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {facility.contacts.map((c: any, i: number) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2 py-1 rounded-full border border-blue-100"
+                >
+                  <span className="capitalize">{c.type}</span>: {c.value}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <span className="text-gray-400 text-sm italic">No contacts</span>
+          )}
+        </div>
+
+        {/* Mobile action menu */}
+        {mobileMenuOpen === facility.id && (
+          <div className="flex space-x-2 pt-2 border-t">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => handleEdit(facility)}
+              className="flex-1"
+            >
+              <Pencil className="w-4 h-4 mr-1" />
+              Edit
+            </Button>
+            <Button
+              size="sm"
+              variant="destructive"
+              onClick={() => handleDelete(facility.id)}
+              className="flex-1"
+            >
+              <Trash2 className="w-4 h-4 mr-1" />
+              Delete
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+
   return (
-    <div className="p-6 space-y-4">
+    <div className="p-4 md:p-6 space-y-4">
       <Card>
-        <CardHeader className="flex justify-between items-center">
-          <CardTitle>Facility Management</CardTitle>
-          <Button onClick={handleCreate}>
-            <Plus className="w-4 h-4 mr-2" /> Add Facility
+        <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+          <CardTitle className="text-xl md:text-2xl">
+            Facility Management
+          </CardTitle>
+          <Button onClick={handleCreate} className="w-full sm:w-auto">
+            <Plus className="w-4 h-4 mr-2" />
+            <span className="whitespace-nowrap">Add Facility</span>
           </Button>
         </CardHeader>
         <CardContent>
@@ -205,150 +318,219 @@ export default function FacilityPage() {
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : !facilities?.length ? (
-            <p className="text-gray-500">No facilities found.</p>
+            <p className="text-gray-500 text-center py-8">
+              No facilities found.
+            </p>
+          ) : isMobile ? (
+            // Mobile view - Card layout
+            <div className="space-y-4">
+              {facilities.map((facility) => (
+                <MobileFacilityCard key={facility.id} facility={facility} />
+              ))}
+            </div>
           ) : (
-            <table className="w-full text-left border border-gray-200 rounded-md">
-              <thead className="bg-gray-100">
-                <tr>
-                  <th className="p-2 border">Name</th>
-                  <th className="p-2 border">Category</th>
-                  <th className="p-2 border">Type</th>
-                  <th className="p-2 border">Status</th>
-                  <th className="p-2 border">Location</th>
-                  <th className="p-2 border">Contacts</th>
-                  <th className="p-2 border text-center">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {facilities.map((f) => (
-                  <tr key={f.id} className="hover:bg-gray-50">
-                    <td className="p-2 border">{f.name}</td>
-                    <td className="p-2 border">{f.category || "-"}</td>
-                    <td className="p-2 border">{f.type || "-"}</td>
-                    <td className="p-2 border">{f.status || "-"}</td>
-                    <td className="p-2 border">{f.location || "-"}</td>
-                    <td className="p-2 border">
-                      {f.contacts && f.contacts.length > 0 ? (
-                        <div className="flex flex-wrap gap-2">
-                          {f.contacts.map((c: any, i: number) => (
-                            <span
-                              key={i}
-                              className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2 py-1 rounded-full border border-blue-100"
-                            >
-                              <span className="capitalize">{c.type}</span>:{" "}
-                              {c.value}
-                            </span>
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-gray-400 text-sm italic">
-                          No contacts
-                        </span>
-                      )}
-                    </td>
-
-                    <td className="p-2 border text-center">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleEdit(f)}
-                        className="mr-2"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => handleDelete(f.id)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </td>
+            // Desktop view - Table layout
+            <div className="overflow-x-auto">
+              <table className="w-full text-left border border-gray-200 rounded-md min-w-[800px]">
+                <thead className="bg-gray-100">
+                  <tr>
+                    <th className="p-3 border text-sm font-medium">Name</th>
+                    <th className="p-3 border text-sm font-medium">Category</th>
+                    <th className="p-3 border text-sm font-medium">Type</th>
+                    <th className="p-3 border text-sm font-medium">Status</th>
+                    <th className="p-3 border text-sm font-medium">Location</th>
+                    <th className="p-3 border text-sm font-medium">Contacts</th>
+                    <th className="p-3 border text-sm font-medium text-center">
+                      Actions
+                    </th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {facilities.map((f) => (
+                    <tr key={f.id} className="hover:bg-gray-50">
+                      <td className="p-3 border text-sm">{f.name}</td>
+                      <td className="p-3 border text-sm">
+                        {f.category || "-"}
+                      </td>
+                      <td className="p-3 border text-sm">{f.type || "-"}</td>
+                      <td className="p-3 border text-sm">
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs ${
+                            f.status === "open"
+                              ? "bg-green-100 text-green-800"
+                              : f.status === "closed"
+                              ? "bg-red-100 text-red-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {f.status || "-"}
+                        </span>
+                      </td>
+                      <td className="p-3 border text-sm">
+                        {f.location || "-"}
+                      </td>
+                      <td className="p-3 border text-sm">
+                        {f.contacts && f.contacts.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {f.contacts.map((c: any, i: number) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 bg-blue-50 text-blue-700 text-xs font-medium px-2 py-1 rounded-full border border-blue-100"
+                              >
+                                <span className="capitalize">{c.type}</span>:{" "}
+                                {c.value}
+                              </span>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-gray-400 text-sm italic">
+                            No contacts
+                          </span>
+                        )}
+                      </td>
+                      <td className="p-3 border text-center">
+                        <div className="flex justify-center space-x-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleEdit(f)}
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={() => handleDelete(f.id)}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </CardContent>
       </Card>
 
       {/* Create/Edit Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-lg">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
               {selected ? "Edit Facility" : "Add Facility"}
             </DialogTitle>
           </DialogHeader>
 
-          <form onSubmit={handleSubmit} className="space-y-3 mt-2">
+          <form onSubmit={handleSubmit} className="space-y-4 mt-2">
             <div>
-              <Label>Name</Label>
+              <Label htmlFor="name">Name</Label>
               <Input
+                id="name"
                 name="name"
                 value={form.name}
                 onChange={handleChange}
                 required
+                className="w-full"
               />
             </div>
 
             <div>
-              <Label>Location</Label>
+              <Label htmlFor="location">Location</Label>
               <Input
+                id="location"
                 name="location"
                 value={form.location}
                 onChange={handleChange}
+                className="w-full"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               <div>
-                <Label>Longitude</Label>
+                <Label htmlFor="longitude">Longitude</Label>
                 <Input
+                  id="longitude"
                   name="longitude"
+                  type="number"
+                  step="any"
                   value={form.longitude}
                   onChange={handleChange}
+                  className="w-full"
                 />
               </div>
               <div>
-                <Label>Latitude</Label>
+                <Label htmlFor="latitude">Latitude</Label>
                 <Input
+                  id="latitude"
                   name="latitude"
+                  type="number"
+                  step="any"
                   value={form.latitude}
                   onChange={handleChange}
+                  className="w-full"
                 />
               </div>
             </div>
 
-            <div>
-              <Label>Type</Label>
-              <select
-                name="type"
-                value={form.type}
-                onChange={handleChange}
-                className="w-full border rounded-md p-2"
-              >
-                <option value="">Select type</option>
-                {facilityTypes.map((t) => (
-                  <option key={t} value={t}>
-                    {t}
-                  </option>
-                ))}
-              </select>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <Label htmlFor="type">Type</Label>
+                <select
+                  id="type"
+                  name="type"
+                  value={form.type}
+                  onChange={handleChange}
+                  className="w-full border rounded-md p-2 text-sm"
+                >
+                  <option value="">Select type</option>
+                  {facilityTypes.map((t) => (
+                    <option key={t} value={t}>
+                      {t.charAt(0).toUpperCase() + t.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <Label htmlFor="status">Status</Label>
+                <select
+                  id="status"
+                  name="status"
+                  value={form.status}
+                  onChange={handleChange}
+                  className="w-full border rounded-md p-2 text-sm"
+                >
+                  <option value="">Select status</option>
+                  {facilityStatuses.map((s) => (
+                    <option key={s} value={s}>
+                      {s.charAt(0).toUpperCase() + s.slice(1)}
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <div>
-              <Label>Category</Label>
+              <Label htmlFor="category">Category</Label>
               <select
+                id="category"
                 name="category"
                 value={form.category}
                 onChange={handleChange}
-                className="w-full border rounded-md p-2"
+                className="w-full border rounded-md p-2 text-sm"
               >
                 <option value="">Select category</option>
                 {facilityCategories.map((c) => (
                   <option key={c} value={c}>
-                    {c}
+                    {c
+                      .split("_")
+                      .map(
+                        (word) => word.charAt(0).toUpperCase() + word.slice(1)
+                      )
+                      .join(" ")}
                   </option>
                 ))}
               </select>
@@ -356,22 +538,27 @@ export default function FacilityPage() {
 
             {form.category === "others" && (
               <div>
-                <Label>Other Category</Label>
+                <Label htmlFor="otherCategory">Other Category</Label>
                 <Input
+                  id="otherCategory"
                   name="otherCategory"
                   value={form.otherCategory}
                   onChange={handleChange}
+                  className="w-full"
                 />
               </div>
             )}
 
             {/* CONTACTS SECTION */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               <Label>Contacts</Label>
               {form.contacts.map((contact, i) => (
-                <div key={i} className="grid grid-cols-5 gap-2 items-center">
+                <div
+                  key={i}
+                  className="grid grid-cols-1 sm:grid-cols-12 gap-2 items-center"
+                >
                   <select
-                    className="col-span-2 border rounded-md p-2"
+                    className="sm:col-span-4 border rounded-md p-2 text-sm"
                     value={contact.type}
                     onChange={(e) =>
                       handleContactChange(i, "type", e.target.value)
@@ -383,7 +570,7 @@ export default function FacilityPage() {
                     <option value="social_media">Social Media</option>
                   </select>
                   <Input
-                    className="col-span-3"
+                    className="sm:col-span-7"
                     placeholder="Enter contact"
                     value={contact.value}
                     onChange={(e) =>
@@ -395,6 +582,7 @@ export default function FacilityPage() {
                     size="sm"
                     type="button"
                     onClick={() => handleRemoveContact(i)}
+                    className="sm:col-span-1 justify-center"
                   >
                     <Trash className="w-4 h-4 text-red-500" />
                   </Button>
@@ -405,37 +593,24 @@ export default function FacilityPage() {
                 variant="outline"
                 size="sm"
                 onClick={handleAddContact}
+                className="w-full sm:w-auto"
               >
                 + Add Contact
               </Button>
             </div>
 
-            <div>
-              <Label>Status</Label>
-              <select
-                name="status"
-                value={form.status}
-                onChange={handleChange}
-                className="w-full border rounded-md p-2"
-              >
-                <option value="">Select status</option>
-                {facilityStatuses.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div className="flex justify-end space-x-2 pt-2">
+            <div className="flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-2 pt-4">
               <Button
                 type="button"
                 variant="outline"
                 onClick={() => setOpen(false)}
+                className="w-full sm:w-auto"
               >
                 Cancel
               </Button>
-              <Button type="submit">{selected ? "Update" : "Save"}</Button>
+              <Button type="submit" className="w-full sm:w-auto">
+                {selected ? "Update" : "Save"}
+              </Button>
             </div>
           </form>
         </DialogContent>

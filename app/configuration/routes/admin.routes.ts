@@ -6,4 +6,5 @@ export const adminRoutes: RouteConfigEntry[] = [
   route("/roads", "./routes/_road.route.tsx"),
   route("/report", "./routes/_report.route.tsx"),
   route("/notification-ms", "./routes/_notification.route.tsx"),
+  route("/metrics", "./routes/_metrics.route.tsx"),
 ];

@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/atoms/card";
 import { Button } from "@/components/atoms/button";
 import { Input } from "@/components/atoms/input";
@@ -15,9 +16,73 @@ import {
   ChevronRight,
   Heart,
 } from "lucide-react";
-import { Switch } from "@/components/atoms/switch";
+import { userService } from "~/app/services/user.service";
+import { getUserFromLocalStorage } from "~/app/utils/auth.helper";
 
 export function ProfilePage() {
+  const [user, setUser] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchUser = async () => {
+    try {
+      const authUser = getUserFromLocalStorage();
+      if (!authUser?.user?.id) return;
+
+      const res = await userService.getById(authUser.user.id);
+      setUser(res.data);
+    } catch (err) {
+      console.error("Failed to fetch user", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchUser();
+  }, []);
+
+  const handleSave = async () => {
+    if (!user?.id) return;
+
+    // Prepare payload for backend
+    const email = user.person?.contacts?.find(
+      (c: any) => c.type === "email"
+    )?.value;
+    const phone = user.contactNumber;
+
+    const payload = {
+      userName: user.userName,
+      person: {
+        firstName: user.person?.firstName,
+        middleName: user.person?.middleName,
+        lastName: user.person?.lastName,
+        extensionName: user.person?.extensionName,
+        contacts: [
+          { type: "email", provider: "email", value: email },
+          ...(phone
+            ? [{ type: "mobile_number", provider: "unknown", value: phone }]
+            : []),
+        ],
+      },
+    };
+
+    try {
+      const updated = await userService.update(user.id, payload);
+      setUser(updated);
+      alert("Profile updated successfully!");
+    } catch (err) {
+      console.error("Failed to update user", err);
+      alert("Failed to update profile");
+    }
+  };
+
+  if (loading) return <div>Loading...</div>;
+  if (!user) return <div>User not found</div>;
+
+  const email =
+    user.person?.contacts?.find((c: any) => c.type === "email")?.value ?? "";
+  const phone = user.contactNumber ?? "";
+
   return (
     <div className="h-full overflow-y-auto pb-20">
       <div className="p-4 space-y-4">
@@ -37,12 +102,14 @@ export function ProfilePage() {
           <div className="flex flex-col items-center text-center space-y-3">
             <Avatar className="w-24 h-24 border-4 border-green-100">
               <AvatarFallback className="bg-primary text-white text-2xl">
-                JD
+                {user.userName?.[0] ?? "U"}
               </AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-foreground">John Doe</h3>
-              <p className="text-xs text-muted-foreground">Active User</p>
+              <h3 className="text-foreground">{user.userName}</h3>
+              <p className="text-xs text-muted-foreground">
+                {user.status ?? "Active User"}
+              </p>
             </div>
             <Button
               variant="outline"
@@ -59,157 +126,120 @@ export function ProfilePage() {
 
           <Card className="p-4 rounded-2xl calm-shadow border-border">
             <div className="space-y-4">
+              {/* First Name */}
               <div>
                 <Label className="text-xs text-muted-foreground">
-                  Full Name
+                  First Name
                 </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <User className="w-4 h-4 text-primary" />
-                  <Input
-                    defaultValue="John Doe"
-                    className="border-border rounded-2xl"
-                  />
-                </div>
+                <Input
+                  value={user.person?.firstName ?? ""}
+                  onChange={(e) =>
+                    setUser((prev: any) => ({
+                      ...prev,
+                      person: { ...prev.person, firstName: e.target.value },
+                    }))
+                  }
+                  className="border-border rounded-2xl"
+                />
               </div>
 
+              {/* Middle Name */}
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Middle Name
+                </Label>
+                <Input
+                  value={user.person?.middleName ?? ""}
+                  onChange={(e) =>
+                    setUser((prev: any) => ({
+                      ...prev,
+                      person: { ...prev.person, middleName: e.target.value },
+                    }))
+                  }
+                  className="border-border rounded-2xl"
+                />
+              </div>
+
+              {/* Last Name */}
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Last Name
+                </Label>
+                <Input
+                  value={user.person?.lastName ?? ""}
+                  onChange={(e) =>
+                    setUser((prev: any) => ({
+                      ...prev,
+                      person: { ...prev.person, lastName: e.target.value },
+                    }))
+                  }
+                  className="border-border rounded-2xl"
+                />
+              </div>
+
+              {/* Extension Name */}
+              <div>
+                <Label className="text-xs text-muted-foreground">
+                  Extension Name
+                </Label>
+                <Input
+                  value={user.person?.extensionName ?? ""}
+                  onChange={(e) =>
+                    setUser((prev: any) => ({
+                      ...prev,
+                      person: { ...prev.person, extensionName: e.target.value },
+                    }))
+                  }
+                  className="border-border rounded-2xl"
+                />
+              </div>
+
+              {/* Email */}
               <div>
                 <Label className="text-xs text-muted-foreground">Email</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Mail className="w-4 h-4 text-primary" />
-                  <Input
-                    defaultValue="john.doe@example.com"
-                    type="email"
-                    className="border-border rounded-2xl"
-                  />
-                </div>
+                <Input
+                  value={email}
+                  type="email"
+                  onChange={(e) =>
+                    setUser((prev: any) => ({
+                      ...prev,
+                      person: {
+                        ...prev.person,
+                        contacts: [
+                          {
+                            type: "email",
+                            provider: "email",
+                            value: e.target.value,
+                          },
+                        ],
+                      },
+                    }))
+                  }
+                  className="border-border rounded-2xl"
+                />
               </div>
 
+              {/* Phone */}
               <div>
                 <Label className="text-xs text-muted-foreground">Phone</Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <Phone className="w-4 h-4 text-primary" />
-                  <Input
-                    defaultValue="+1 (555) 123-4567"
-                    className="border-border rounded-2xl"
-                  />
-                </div>
+                <Input
+                  value={phone}
+                  onChange={(e) =>
+                    setUser((prev: any) => ({
+                      ...prev,
+                      contactNumber: e.target.value,
+                    }))
+                  }
+                  className="border-border rounded-2xl"
+                />
               </div>
 
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Location
-                </Label>
-                <div className="flex items-center gap-2 mt-1">
-                  <MapPin className="w-4 h-4 text-primary" />
-                  <Input
-                    defaultValue="San Francisco, CA"
-                    className="border-border rounded-2xl"
-                  />
-                </div>
-              </div>
-
-              <Button className="w-full bg-primary hover:bg-primary/90 rounded-2xl">
+              <Button
+                onClick={handleSave}
+                className="w-full bg-primary hover:bg-primary/90 rounded-2xl"
+              >
                 Save Changes
               </Button>
-            </div>
-          </Card>
-        </div>
-
-        {/* Security Settings */}
-        <div className="space-y-3">
-          <h3 className="text-foreground">Security Settings</h3>
-
-          <Card className="p-3 rounded-2xl calm-shadow border-border">
-            <button className="w-full flex items-center justify-between p-2 hover:bg-green-50 rounded-xl transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <Lock className="w-5 h-5 text-primary" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm text-foreground">Change Password</p>
-                  <p className="text-xs text-muted-foreground">
-                    Update your password
-                  </p>
-                </div>
-              </div>
-              <ChevronRight className="w-5 h-5 text-muted-foreground" />
-            </button>
-          </Card>
-
-          <Card className="p-3 rounded-2xl calm-shadow border-border">
-            <button className="w-full flex items-center justify-between p-2 hover:bg-green-50 rounded-xl transition-colors">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
-                  <Shield className="w-5 h-5 text-primary" />
-                </div>
-                <div className="text-left">
-                  <p className="text-sm text-foreground">
-                    Two-Factor Authentication
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Add extra security
-                  </p>
-                </div>
-              </div>
-              <Switch className="data-[state=checked]:bg-primary" />
-            </button>
-          </Card>
-        </div>
-
-        {/* Notification Preferences */}
-        <div className="space-y-3">
-          <h3 className="text-foreground">Notifications</h3>
-
-          <Card className="p-4 rounded-2xl calm-shadow border-border">
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Bell className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-sm text-foreground">
-                      Push Notifications
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Receive alerts and updates
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  defaultChecked
-                  className="data-[state=checked]:bg-primary"
-                />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Mail className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-sm text-foreground">
-                      Email Notifications
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      Get updates via email
-                    </p>
-                  </div>
-                </div>
-                <Switch className="data-[state=checked]:bg-primary" />
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <MapPin className="w-4 h-4 text-primary" />
-                  <div>
-                    <p className="text-sm text-foreground">Location Alerts</p>
-                    <p className="text-xs text-muted-foreground">
-                      Nearby incident warnings
-                    </p>
-                  </div>
-                </div>
-                <Switch
-                  defaultChecked
-                  className="data-[state=checked]:bg-primary"
-                />
-              </div>
             </div>
           </Card>
         </div>
@@ -219,9 +249,7 @@ export function ProfilePage() {
           variant="outline"
           className="w-full border-red-300 text-red-600 hover:bg-red-50 rounded-2xl"
           onClick={() => {
-            //clear local storage "auth"
             localStorage.removeItem("auth");
-            //redirect to login page
             window.location.href = "/";
           }}
         >

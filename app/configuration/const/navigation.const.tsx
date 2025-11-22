@@ -211,12 +211,12 @@ export const USER_NAV = [
 ];
 
 export const MAIN_NAVIGATION: NavigationItem[] = [
-  // {
-  //   name: "Dashboard",
-  //   href: "/dashboard",
-  //   icon: LayoutDashboard,
-  //   userTypes: ["admin", "organization"],
-  // },
+  {
+    name: "Dashboard",
+    href: "/metrics",
+    icon: LayoutDashboard,
+    userTypes: ["admin", "organization"],
+  },
   {
     name: "Roads",
     href: "/roads",

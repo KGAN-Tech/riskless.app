@@ -2,7 +2,10 @@ import { useEffect, useState } from "react";
 import type { LatLngTuple } from "leaflet";
 import { Compass } from "lucide-react";
 import { DestinationSearch } from "~/app/components/templates/cards/destination.search";
-import { RiskMap } from "~/app/components/templates/cards/risk.map";
+import {
+  RiskMap,
+  type Facility,
+} from "~/app/components/templates/cards/risk.map";
 import { useRoad } from "~/app/hooks/use.road";
 import {
   Dialog,
@@ -16,6 +19,8 @@ import { Label } from "@/components/atoms/label";
 import { Input } from "@/components/atoms/input";
 import { reportService } from "~/app/services/report.service";
 import { activityService } from "~/app/services/activity.service";
+import { facilityService } from "~/app/services/facility.service";
+import { getUserFromLocalStorage } from "~/app/utils/auth.helper";
 
 export function MapPage() {
   const { items: roads = [] } = useRoad();
@@ -37,6 +42,9 @@ export function MapPage() {
   const [roadReason, setRoadReason] = useState("");
   const [roadFiles, setRoadFiles] = useState<File[]>([]);
 
+  const [facilities, setFacilities] = useState<Facility[]>([]);
+  const [loading, setLoading] = useState(false);
+
   const handleMapAction = (action: string, coords: [number, number]) => {
     setClickedCoords(coords);
     if (action === "startTravel") setDestinationCoords(coords);
@@ -50,6 +58,24 @@ export function MapPage() {
       (err) => console.warn("Location denied:", err),
       { enableHighAccuracy: true }
     );
+  }, []);
+
+  const fetchFacilities = async () => {
+    setLoading(true);
+    try {
+      const res = await facilityService.getAll();
+      const list = res?.data ?? [];
+      setFacilities(Array.isArray(list) ? list : []);
+    } catch (err) {
+      console.error("Error fetching facilities:", err);
+      setFacilities([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchFacilities();
   }, []);
 
   const handleIncidentFilesChange = (
@@ -74,6 +100,7 @@ export function MapPage() {
       formData.append("longitude", String(clickedCoords[1]));
     }
     incidentFiles.forEach((file) => formData.append("files", file));
+    formData.append("createdById", getUserFromLocalStorage()?.user?.id || "");
 
     try {
       const reportResponse = await reportService.create(formData);
@@ -84,9 +111,10 @@ export function MapPage() {
           title: "New Incident Reported",
           description: incidentDescription,
           reportId,
-          type: "incident",
+          type: "incidents",
           latitude: clickedCoords?.[0],
           longitude: clickedCoords?.[1],
+          createdById: getUserFromLocalStorage()?.user?.id,
         });
       }
 
@@ -112,6 +140,7 @@ export function MapPage() {
       formData.append("longitude", String(clickedCoords[1]));
     }
     roadFiles.forEach((file) => formData.append("files", file));
+    formData.append("createdById", getUserFromLocalStorage()?.user?.id || "");
 
     try {
       const reportResponse = await reportService.create(formData);
@@ -122,8 +151,10 @@ export function MapPage() {
           title: "New High-Risk Road Reported",
           description: roadReason,
           reportId,
+          type: "road_reports",
           latitude: clickedCoords?.[0],
           longitude: clickedCoords?.[1],
+          createdById: getUserFromLocalStorage()?.user?.id,
         });
       }
 
@@ -154,6 +185,7 @@ export function MapPage() {
           destination={destinationCoords as LatLngTuple}
           highRiskRoads={roads}
           onChooseAction={handleMapAction}
+          facilities={facilities}
         />
 
         {/* Incident Modal */}

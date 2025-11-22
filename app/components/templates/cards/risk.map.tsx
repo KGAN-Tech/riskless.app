@@ -20,11 +20,36 @@ import { Compass, AlertTriangle, MapPin, Navigation, Flag } from "lucide-react";
 
 interface HighRiskRoad {
   id: string;
-  name: string;
+  title: string;
   description: string;
   latitude: number;
   longitude: number;
-  riskStatus: string;
+  status: string;
+  type?: string;
+  otherType?: string;
+}
+
+export interface Facility {
+  id: string;
+  name: string;
+  location: string;
+  longitude: number;
+  latitude: number;
+  type: string;
+  category: string;
+  status: string;
+  contacts?: Array<{
+    type: string;
+    provider: string;
+    value: string;
+  }>;
+  logo?: string | null;
+  provider?: string;
+  tagline?: string;
+  otherCategory?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  isDeleted?: boolean;
 }
 
 interface RiskMapProps {
@@ -32,6 +57,7 @@ interface RiskMapProps {
   destination?: LatLngExpression;
   highRiskRoads: HighRiskRoad[];
   onChooseAction?: (action: string, coords: [number, number]) => void;
+  facilities?: Facility[];
 }
 
 // 👇 Fit map to route automatically
@@ -62,10 +88,55 @@ function getDistanceMeters(
   return R * c;
 }
 
+// 🏥 Facility type to icon mapping
+const getFacilityIcon = (category: string, status: string) => {
+  const baseIconUrl = "https://cdn-icons-png.flaticon.com/512/";
+  const size = [25, 25] as [number, number];
+  const anchor = [12, 25] as [number, number];
+
+  // Color based on status
+  const color =
+    status === "open" ? "green" : status === "closed" ? "red" : "gray";
+
+  let iconUrl = "";
+
+  switch (category) {
+    case "emergency_facility":
+    case "hospital":
+      iconUrl = `https://cdn-icons-png.flaticon.com/512/9195/9195850.png`; // Hospital icon
+      break;
+    case "police_station":
+      iconUrl = `https://cdn-icons-png.flaticon.com/512/4320/4320648.png`; // Police icon
+      break;
+    case "fire_station":
+      iconUrl = `https://cdn-icons-png.flaticon.com/512/1060/1060984.png`; // Fire station icon
+      break;
+    case "evacuation_center":
+      iconUrl = `https://cdn-icons-png.flaticon.com/512/3096/3096970.png`; // Shelter icon
+      break;
+    case "clinic":
+      iconUrl = `https://cdn-icons-png.flaticon.com/512/2966/2966455.png`; // Clinic icon
+      break;
+    case "pharmacy":
+      iconUrl = `https://cdn-icons-png.flaticon.com/512/3142/3142945.png`; // Pharmacy icon
+      break;
+    default:
+      iconUrl = `https://cdn-icons-png.flaticon.com/512/684/684908.png`; // Default map pin
+  }
+
+  return L.icon({
+    iconUrl: iconUrl,
+    iconSize: size,
+    iconAnchor: anchor,
+    className: `facility-icon ${status === "closed" ? "facility-closed" : ""}`,
+  });
+};
+
 export function RiskMap({
   currentLocation,
   destination,
   highRiskRoads,
+  facilities,
   onChooseAction,
 }: RiskMapProps) {
   const [isTravelling, setIsTravelling] = useState(false);
@@ -81,6 +152,14 @@ export function RiskMap({
   const [showChoiceModal, setShowChoiceModal] = useState(false);
 
   const mapRef = useRef<LeafletMap | null>(null);
+  const highRiskIcon = L.icon({
+    iconUrl:
+      "https://uxwing.com/wp-content/themes/uxwing/download/signs-and-symbols/risk-icon.png",
+    iconSize: [30, 30],
+    iconAnchor: [15, 30],
+  });
+
+  console.log("Facilities loaded in RiskMap:", facilities);
 
   // ✅ Fix default Leaflet marker icons
   delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -214,47 +293,188 @@ export function RiskMap({
           doubleClickZoom={false}
         >
           <MapClickHandler />
-
           <TileLayer
             attribution='&copy; <a href="https://www.openstreetmap.org/">OpenStreetMap</a>'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-
           {isTravelling && route.length > 0 && <FitToRoute route={route} />}
-
           {liveLocation && (
             <Marker position={liveLocation} icon={currentLocationIcon}>
               <Popup>Your current location</Popup>
             </Marker>
           )}
-
           {destination && (
             <Marker position={destination} icon={destinationIcon}>
               <Popup>Destination</Popup>
             </Marker>
           )}
-
           {route.length > 0 && (
             <Polyline positions={route} color="blue" weight={4} />
           )}
-
           {pinnedLocation && (
             <Marker position={pinnedLocation}>
               <Popup>Pinned Location</Popup>
             </Marker>
           )}
-
           {highRiskRoads.map((road) => (
-            <Marker key={road.id} position={[road.latitude, road.longitude]}>
+            <Marker
+              key={road.id}
+              icon={highRiskIcon}
+              position={[road.latitude, road.longitude]}
+            >
               <Popup>
-                <strong>{road.name}</strong>
+                <strong>{road.title}</strong>
                 <br />
-                Risk: {road.riskStatus}
+                {road.description}
+                <br />
+                Coordinates: {road.latitude.toFixed(5)},{" "}
+                {road.longitude.toFixed(5)}
+                <br />
+                Type: {road.type === "other" ? road.otherType : road.type}
+                <br />
+                Risk: {road.status}
               </Popup>
             </Marker>
           ))}
+          {/* 🏥 Facilities Markers */}
+
+          {facilities && facilities.length > 0 ? (
+            facilities.map((facility) => {
+              try {
+                // Validate coordinates
+                if (!facility.latitude || !facility.longitude) {
+                  console.warn(
+                    `Facility ${facility.id} missing coordinates:`,
+                    facility
+                  );
+                  return null;
+                }
+
+                if (isNaN(facility.latitude) || isNaN(facility.longitude)) {
+                  console.warn(
+                    `Facility ${facility.id} has invalid coordinates:`,
+                    facility
+                  );
+                  return null;
+                }
+
+                const icon = getFacilityIcon(
+                  facility.category,
+                  facility.status
+                );
+
+                return (
+                  <Marker
+                    key={facility.id}
+                    position={[facility.latitude, facility.longitude]}
+                    icon={icon}
+                  >
+                    <Popup>
+                      <div className="min-w-[200px]">
+                        <strong className="text-sm">{facility.name}</strong>
+                        <div className="mt-1 text-xs text-gray-600">
+                          <div>
+                            <strong>Type:</strong> {facility.type}
+                          </div>
+                          <div>
+                            <strong>Category:</strong> {facility.category}
+                          </div>
+                          <div>
+                            <strong>Status:</strong>
+                            <span
+                              className={`ml-1 ${
+                                facility.status === "open"
+                                  ? "text-green-600"
+                                  : facility.status === "closed"
+                                  ? "text-red-600"
+                                  : "text-gray-600"
+                              }`}
+                            >
+                              {facility.status}
+                            </span>
+                          </div>
+                        </div>
+                        {facility.location && (
+                          <div className="mt-2 text-xs">
+                            <strong>Location:</strong> {facility.location}
+                          </div>
+                        )}
+                        {facility.contacts && facility.contacts.length > 0 && (
+                          <div className="mt-2">
+                            <strong className="text-xs">Contacts:</strong>
+                            {facility.contacts.map(
+                              (contact, index) =>
+                                contact.value && (
+                                  <div key={index} className="text-xs">
+                                    {contact.type}: {contact.value}
+                                  </div>
+                                )
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              } catch (error) {
+                console.error(
+                  `Error rendering facility ${facility.id}:`,
+                  error,
+                  facility
+                );
+                return null;
+              }
+            })
+          ) : (
+            <div className="leaflet-top leaflet-left">
+              <div className="leaflet-control leaflet-bar p-2 bg-white text-xs">
+                No facilities to display
+              </div>
+            </div>
+          )}
         </MapContainer>
       </Card>
+
+      {/* 🏥 Facilities Legend */}
+      {facilities && facilities.length > 0 && (
+        <Card className="p-3 rounded-2xl calm-shadow border-border">
+          <h3 className="text-sm font-semibold mb-2">Facilities Legend</h3>
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="flex items-center gap-1">
+              <img
+                src="https://cdn-icons-png.flaticon.com/512/9195/9195850.png"
+                className="w-4 h-4"
+                alt="Emergency Facility"
+              />
+              <span>Emergency Facility</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <img
+                src="https://cdn-icons-png.flaticon.com/512/4320/4320648.png"
+                className="w-4 h-4"
+                alt="Police Station"
+              />
+              <span>Police Station</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <img
+                src="https://cdn-icons-png.flaticon.com/512/1060/1060984.png"
+                className="w-4 h-4"
+                alt="Fire Station"
+              />
+              <span>Fire Station</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <img
+                src="https://cdn-icons-png.flaticon.com/512/3096/3096970.png"
+                className="w-4 h-4"
+                alt="Evacuation Center"
+              />
+              <span>Evacuation Center</span>
+            </div>
+          </div>
+        </Card>
+      )}
 
       <div className="flex justify-center gap-3">
         {!isTravelling ? (
@@ -283,7 +503,7 @@ export function RiskMap({
               Warning: High-Risk Area Ahead!
             </h2>
             <p className="text-sm text-gray-700">
-              You are near <strong>{warning.name}</strong> —{" "}
+              You are near <strong>{warning.title}</strong> —{" "}
               {warning.description}
             </p>
             <Button

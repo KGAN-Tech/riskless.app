@@ -16,6 +16,7 @@ import {
   CheckCircle,
   Clock,
   Sparkles,
+  X,
 } from "lucide-react";
 import {
   Tabs,
@@ -25,6 +26,7 @@ import {
 } from "@/components/atoms/tabs";
 import { activityService } from "~/app/services/activity.service";
 import { reportService } from "~/app/services/report.service";
+import { getUserFromLocalStorage } from "~/app/utils/auth.helper";
 
 export function ActivityPage() {
   const [activeTab, setActiveTab] = useState<"activities" | "reports">(
@@ -36,6 +38,9 @@ export function ActivityPage() {
   const [activities, setActivities] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [modalItem, setModalItem] = useState<any | null>(null);
+
+  const user = getUserFromLocalStorage().user;
 
   useEffect(() => {
     fetchData();
@@ -45,10 +50,10 @@ export function ActivityPage() {
     setLoading(true);
     try {
       if (activeTab === "activities") {
-        const res = await activityService.getAll();
+        const res = await activityService.getAll({ createdById: user.id });
         setActivities(res.data ?? []);
       } else {
-        const res = await reportService.getAll();
+        const res = await reportService.getAll({ createdById: user.id });
         setReports(res.data ?? []);
       }
     } catch (err) {
@@ -82,32 +87,35 @@ export function ActivityPage() {
       default:
         return (
           <Badge variant="secondary" className="rounded-full">
-            {status}
+            {status || "Unknown"}
           </Badge>
         );
     }
   };
 
-  const getTypeBadge = (type: string) => {
-    if (type === "incident") {
-      return (
-        <Badge
-          variant="outline"
-          className="border-primary text-primary rounded-full"
-        >
-          Incident
-        </Badge>
-      );
-    }
-    return (
+  const getTypeBadge = (type: string) =>
+    type === "incident" || type === "incidents" ? (
+      <Badge
+        variant="outline"
+        className="border-primary text-primary rounded-full"
+      >
+        Incident
+      </Badge>
+    ) : type === "road_report" ? (
       <Badge
         variant="outline"
         className="border-pink-300 text-pink-600 rounded-full"
       >
         Road Report
       </Badge>
+    ) : (
+      <Badge
+        variant="outline"
+        className="border-gray-300 text-gray-600 rounded-full"
+      >
+        {type || "Unknown"}
+      </Badge>
     );
-  };
 
   const filteredActivities = activities.filter((item) => {
     if (filterStatus !== "all" && item.status !== filterStatus) return false;
@@ -139,7 +147,7 @@ export function ActivityPage() {
           <div className="flex items-center gap-1">
             <MapPin className="w-3 h-3 text-primary" />
             <span>
-              {item.location || item.latitude + ", " + item.longitude}
+              {item.location || `${item.latitude}, ${item.longitude}`}
             </span>
           </div>
           {item.date && item.time && (
@@ -158,6 +166,7 @@ export function ActivityPage() {
             variant="ghost"
             size="sm"
             className="text-primary h-8 text-xs hover:bg-green-50 rounded-full"
+            onClick={() => setModalItem(item)}
           >
             View Details
           </Button>
@@ -168,6 +177,7 @@ export function ActivityPage() {
 
   return (
     <div className="h-full overflow-y-auto pb-20 p-4 space-y-4">
+      {/* Page Header */}
       <div>
         <h2 className="text-foreground flex items-center gap-2">
           <Sparkles className="w-5 h-5 text-primary" /> My Activity
@@ -251,6 +261,69 @@ export function ActivityPage() {
           </div>
         </TabsContent>
       </Tabs>
+
+      {/* Modal */}
+      {modalItem && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl p-6 w-full max-w-md relative max-h-[90vh] overflow-y-auto">
+            <Button
+              variant="ghost"
+              className="absolute top-2 right-2 p-2"
+              onClick={() => setModalItem(null)}
+            >
+              <X className="w-4 h-4" />
+            </Button>
+
+            <h3 className="text-lg font-bold mb-2">{modalItem.title}</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              {modalItem.description}
+            </p>
+
+            <div className="flex gap-2 mb-3">
+              {getStatusBadge(modalItem.status || "unknown")}
+              {getTypeBadge(modalItem.type || "unknown")}
+            </div>
+
+            <div className="text-xs text-muted-foreground mb-3 space-y-1">
+              <p>
+                <MapPin className="inline w-3 h-3 mr-1 text-primary" />
+                {modalItem.location ||
+                  `${modalItem.latitude}, ${modalItem.longitude}`}
+              </p>
+              {modalItem.date && modalItem.time && (
+                <p>
+                  <Calendar className="inline w-3 h-3 mr-1 text-pink-400" />
+                  {modalItem.date} {modalItem.time}
+                </p>
+              )}
+            </div>
+
+            {/* Images */}
+            {modalItem.images && modalItem.images.length > 0 && (
+              <div className="grid grid-cols-1 gap-2 mb-3">
+                {modalItem.images.map((img: string, idx: number) => (
+                  <img
+                    key={idx}
+                    src={img}
+                    alt={`Image ${idx + 1}`}
+                    className="w-full h-48 object-cover rounded-lg"
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Created By */}
+            {modalItem.createdBy && (
+              <div className="text-xs text-muted-foreground mt-2">
+                <p>
+                  <span className="font-semibold">Created by:</span>{" "}
+                  {modalItem.createdBy.userName}
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
