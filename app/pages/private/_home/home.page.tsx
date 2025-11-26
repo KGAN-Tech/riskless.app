@@ -107,12 +107,12 @@ END:VCARD
         />
 
         {/* Stats Grid */}
-        <NearbyStatsCard
+        {/* <NearbyStatsCard
           nearIncident={true}
           nearHighRiskRoad={true}
           accidentCount={0}
           highRiskCount={0}
-        />
+        /> */}
 
         {/* Emergency Hotlines */}
         <EmergencyHotlinesList

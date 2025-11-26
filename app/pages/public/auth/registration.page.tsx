@@ -95,7 +95,7 @@ export function RegisterPage() {
                 <Input
                   id="firstName"
                   type="text"
-                  placeholder="John"
+                  placeholder="First Name"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
                   required
@@ -106,7 +106,7 @@ export function RegisterPage() {
                 <Input
                   id="lastName"
                   type="text"
-                  placeholder="Doe"
+                  placeholder="Last Name"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
                   required
@@ -119,14 +119,14 @@ export function RegisterPage() {
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder="Email Address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
               />
             </div>
 
-            <div className="space-y-2">
+            {/* <div className="space-y-2">
               <Label htmlFor="profileImage">Profile Picture (optional)</Label>
               <Input
                 id="profileImage"
@@ -144,7 +144,7 @@ export function RegisterPage() {
                   {profileImage.name}
                 </p>
               )}
-            </div>
+            </div> */}
 
             <div className="space-y-2">
               <Label htmlFor="password">Password</Label>

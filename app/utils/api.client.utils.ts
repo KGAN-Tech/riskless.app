@@ -145,7 +145,7 @@ class APIClientBuilder {
       ) => request("POST", url, data, options),
       put: (
         url: string,
-        data: any,
+        data?: any,
         options?: { headers?: HeadersInit; withAuth?: boolean }
       ) => request("PUT", url, data, options),
       patch: (

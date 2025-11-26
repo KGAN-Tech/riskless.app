@@ -44,31 +44,24 @@ export default function AccountMSPage() {
     facilityName: "",
   });
 
+  // 🔹 Get current user's facility ID for filtering
+  const getCurrentUserFacilityId = (): string | undefined => {
+    const localUser = getUserFromLocalStorage();
+    return localUser?.user?.facility?.id;
+  };
+
   // 🔹 Fetch all users (filtered if facility present)
   const fetchUsers = async () => {
     setLoading(true);
     try {
-      const params: any = {};
+      const currentFacilityId = getCurrentUserFacilityId();
 
-      // ✅ Only apply facility filter if available
-      if (userFacility?.id) {
-        params.facilityId = userFacility.id;
-      }
+      const res = await userService.getAll({
+        ...(currentFacilityId && { facilityId: currentFacilityId }),
+        role: "admin",
+      });
 
-      console.log("📤 Fetching users with params:", params);
-      const res = await userService.getAll(params);
-
-      let allUsers = Array.isArray(res?.users) ? res.users : [];
-
-      // ✅ Filter: show only admins OR organization users
-      allUsers = allUsers.filter(
-        (u: any) =>
-          u.type === "admin" || u.type === "staff" || u.type === "organization"
-      );
-
-      console.log("📥 Filtered users (staff/org):", allUsers);
-
-      setUsers(allUsers);
+      setUsers(res?.users || []);
     } catch (err) {
       console.error("Error fetching users:", err);
       setUsers([]);
@@ -111,6 +104,7 @@ export default function AccountMSPage() {
   const handleCreate = () => {
     setSelected(null);
 
+    const currentFacilityId = getCurrentUserFacilityId();
     const initialFacility =
       userFacility?.id && userFacility?.name
         ? {
@@ -158,6 +152,13 @@ export default function AccountMSPage() {
 
     if (!selected && form.password !== form.confirmPassword) {
       alert("Passwords do not match!");
+      return;
+    }
+
+    // Validate facility assignment for non-facility users
+    const currentFacilityId = getCurrentUserFacilityId();
+    if (currentFacilityId && !form.facilityId) {
+      alert("Facility is required for your account type.");
       return;
     }
 
@@ -243,16 +244,18 @@ export default function AccountMSPage() {
     }
   }, []);
 
-  // 🔹 Fetch users whenever facility changes
+  // 🔹 Fetch users on component mount
   useEffect(() => {
     fetchUsers();
-  }, [userFacility]);
+  }, []);
 
   // 🔹 Facility search debounce
   useEffect(() => {
     const delay = setTimeout(() => fetchFacilities(facilitySearch), 400);
     return () => clearTimeout(delay);
   }, [facilitySearch]);
+
+  const currentFacilityId = getCurrentUserFacilityId();
 
   return (
     <div className="p-6 space-y-4">
@@ -265,13 +268,21 @@ export default function AccountMSPage() {
         </CardHeader>
 
         <CardContent>
+          {currentFacilityId && (
+            <div className="mb-4 p-3 bg-blue-50 rounded-md text-sm text-blue-700">
+              Showing users for your facility only
+            </div>
+          )}
+
           {loading ? (
             <div className="flex justify-center p-4">
               <Loader2 className="w-6 h-6 animate-spin" />
             </div>
           ) : !users.length ? (
             <p className="text-gray-500 text-center py-4">
-              No admins or organizations found.
+              {currentFacilityId
+                ? "No admins or organizations found for your facility."
+                : "No admins or organizations found."}
             </p>
           ) : (
             <table className="w-full text-left border border-gray-200 rounded-md">
@@ -405,13 +416,18 @@ export default function AccountMSPage() {
             </div>
 
             {/* Facility Section */}
-            {userFacility ? (
+            {currentFacilityId ? (
               <div>
                 <Label>Facility</Label>
                 <Input
-                  value={userFacility.name}
+                  value={userFacility?.name || "Current Facility"}
                   disabled
                   className="bg-gray-100"
+                />
+                <input
+                  type="hidden"
+                  name="facilityId"
+                  value={currentFacilityId}
                 />
               </div>
             ) : (

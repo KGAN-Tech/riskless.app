@@ -17,6 +17,7 @@ import {
   Clock,
   Sparkles,
   X,
+  FileText,
 } from "lucide-react";
 import {
   Tabs,
@@ -34,6 +35,7 @@ export function ActivityPage() {
   );
   const [filterStatus, setFilterStatus] = useState("all");
   const [filterType, setFilterType] = useState("all");
+  const [filterReportType, setFilterReportType] = useState("all");
 
   const [activities, setActivities] = useState<any[]>([]);
   const [reports, setReports] = useState<any[]>([]);
@@ -108,6 +110,13 @@ export function ActivityPage() {
       >
         Road Report
       </Badge>
+    ) : type === "travel" ? (
+      <Badge
+        variant="outline"
+        className="border-pink-300 text-blue-600 rounded-full"
+      >
+        Travel
+      </Badge>
     ) : (
       <Badge
         variant="outline"
@@ -118,14 +127,30 @@ export function ActivityPage() {
     );
 
   const filteredActivities = activities.filter((item) => {
-    if (filterStatus !== "all" && item.status !== filterStatus) return false;
-    if (filterType !== "all" && item.type !== filterType) return false;
+    if (
+      filterStatus.toLowerCase() !== "all" &&
+      item.status.toLowerCase() !== filterStatus.toLowerCase()
+    )
+      return false;
+    if (
+      filterType.toLowerCase() !== "all" &&
+      item.type.toLowerCase() !== filterType.toLowerCase()
+    )
+      return false;
     return true;
   });
 
   const filteredReports = reports.filter((item) => {
-    if (filterStatus !== "all" && item.status !== filterStatus) return false;
-    if (filterType !== "all" && item.type !== filterType) return false;
+    if (
+      filterStatus.toLowerCase() !== "all" &&
+      item.status.toLowerCase() !== filterStatus.toLowerCase()
+    )
+      return false;
+    if (
+      filterReportType.toLowerCase() !== "all" &&
+      item.type.toLowerCase() !== filterReportType.toLowerCase()
+    )
+      return false;
     return true;
   });
 
@@ -175,6 +200,24 @@ export function ActivityPage() {
     </Card>
   );
 
+  const renderNoData = (type: "activities" | "reports") => (
+    <div className="text-center py-12 space-y-4">
+      <div className="flex justify-center">
+        <div className="p-4 bg-muted/50 rounded-full">
+          <FileText className="w-8 h-8 text-muted-foreground" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <h3 className="font-medium text-foreground">No {type} found</h3>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+          {type === "activities"
+            ? "You haven't created any activities yet. Your activities will appear here once you submit them."
+            : "You haven't created any reports yet. Your reports will appear here once you submit them."}
+        </p>
+      </div>
+    </div>
+  );
+
   return (
     <div className="h-full overflow-y-auto pb-20 p-4 space-y-4">
       {/* Page Header */}
@@ -199,65 +242,63 @@ export function ActivityPage() {
 
         {/* Activities Tab */}
         <TabsContent value="activities">
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="border-border rounded-2xl">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="border-border rounded-2xl">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="incident">Incidents</SelectItem>
-                <SelectItem value="road_report">Road Reports</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex justify-between items-center gap-3 mb-4">
+            <div></div>
+            <div>
+              <Select value={filterType} onValueChange={setFilterType}>
+                <SelectTrigger className="border-border rounded-2xl">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="incidents">Incidents</SelectItem>
+                  <SelectItem value="road_report">Road Reports</SelectItem>
+                  <SelectItem value="travel">Travel</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-3">
-            {loading ? <p>Loading...</p> : filteredActivities.map(renderCard)}
+            {loading ? (
+              <p>Loading...</p>
+            ) : filteredActivities.length > 0 ? (
+              filteredActivities.map(renderCard)
+            ) : (
+              renderNoData("activities")
+            )}
           </div>
         </TabsContent>
 
         {/* Reports Tab */}
         <TabsContent value="reports">
-          <div className="grid grid-cols-2 gap-3 mb-4">
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="border-border rounded-2xl">
-                <SelectValue placeholder="Filter by status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="in_progress">In Progress</SelectItem>
-                <SelectItem value="resolved">Resolved</SelectItem>
-              </SelectContent>
-            </Select>
-
-            <Select value={filterType} onValueChange={setFilterType}>
-              <SelectTrigger className="border-border rounded-2xl">
-                <SelectValue placeholder="Filter by type" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">All Types</SelectItem>
-                <SelectItem value="incident">Incidents</SelectItem>
-                <SelectItem value="road_report">Road Reports</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex justify-between items-center gap-3 mb-4">
+            <div></div>
+            <div>
+              <Select
+                value={filterReportType}
+                onValueChange={setFilterReportType}
+              >
+                <SelectTrigger className="border-border rounded-2xl">
+                  <SelectValue placeholder="Filter by type" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Types</SelectItem>
+                  <SelectItem value="incident">Incidents</SelectItem>
+                  <SelectItem value="road_report">Road Reports</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="space-y-3">
-            {loading ? <p>Loading...</p> : filteredReports.map(renderCard)}
+            {loading ? (
+              <p>Loading...</p>
+            ) : filteredReports.length > 0 ? (
+              filteredReports.map(renderCard)
+            ) : (
+              renderNoData("reports")
+            )}
           </div>
         </TabsContent>
       </Tabs>

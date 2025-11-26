@@ -7,6 +7,5 @@ export const reportService = {
   create: (data: any) => api.post("/report", data, { withAuth: true }),
   update: (id: string, data: Record<string, any>) =>
     api.patch(`/report/${id}`, data),
-  remove: (id: string, data: Record<string, any>) =>
-    api.put(`/report/${id}`, data),
+  remove: (id: string) => api.delete(`/report/${id}`),
 };

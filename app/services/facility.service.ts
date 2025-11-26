@@ -8,6 +8,5 @@ export const facilityService = {
   create: (data: any) => api.post("/facility", data, { withAuth: true }),
   update: (id: string, data: Record<string, any>) =>
     api.patch(`/facility/${id}`, data),
-  remove: (id: string, data: Record<string, any>) =>
-    api.put(`/facility/${id}`, data),
+  remove: (id: string) => api.put(`/facility/${id}`),
 };

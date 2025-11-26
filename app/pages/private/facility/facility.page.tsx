@@ -194,7 +194,7 @@ export default function FacilityPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this facility?")) return;
     try {
-      await facilityService.remove(id, {});
+      await facilityService.remove(id);
       fetchFacilities();
       setMobileMenuOpen(false);
     } catch (err) {

@@ -79,7 +79,9 @@ export default function SidebarV2({ isOpen, setIsOpen }: AdminSidebarProps) {
               Riskless{" "}
               <p className="text-sm text-gray-500">
                 {" "}
-                {user?.facility?.name || "Unknown"}
+                {user?.role === "super_admin"
+                  ? "Super Admin"
+                  : user?.facility?.name || "No Organization"}
               </p>
             </h1>
 
