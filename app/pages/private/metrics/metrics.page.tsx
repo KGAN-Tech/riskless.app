@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { metricsService } from "~/app/services/metrics.service";
+import { getUserFromLocalStorage } from "~/app/utils/auth.helper";
 
 // Type definitions
 interface CountData {
@@ -136,59 +137,101 @@ export default function MetricsPage() {
   const [metrics, setMetrics] = useState<MetricsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState<string>("");
+  const user = getUserFromLocalStorage().user?.role;
+  const facilityId = getUserFromLocalStorage().user?.facilityId;
 
   const fetchMetrics = async () => {
     setLoading(true);
     try {
-      const res = await metricsService.search({
-        metrics: [
-          {
-            model: "user",
-            data: ["newUsersYearly", "newUsersMonthly", "totalUsers"],
-          },
-          {
-            model: "road",
-            data: [
-              "totalRoads",
-              "activeRoads",
-              "roadsByType",
-              "highRiskRoads",
-              "roadsByStatus",
-              "newRoadsYearly",
-              "newRoadsMonthly",
-            ],
-          },
-          {
-            model: "report",
-            data: [
-              "totalReports",
-              "activeReports",
-              "reportsByType",
-              "reportsByStatus",
-              "newReportsYearly",
-              "newReportsMonthly",
-              "reportsWithLocation",
-            ],
-          },
-          {
-            model: "facility",
-            data: [
-              "totalFacilities",
-              "activeFacilities",
-              "facilitiesByType",
-              "facilitiesByStatus",
-              "facilitiesByCategory",
-              "facilitiesWithLocation",
-              "newFacilitiesYearly",
-              "newFacilitiesMonthly",
-            ],
-          },
-        ],
-      });
+      if (user === "super_admin") {
+        const res = await metricsService.search({
+          metrics: [
+            {
+              model: "user",
+              data: ["newUsersYearly", "newUsersMonthly", "totalUsers"],
+            },
+            {
+              model: "road",
+              data: [
+                "totalRoads",
+                "activeRoads",
+                "roadsByType",
+                "highRiskRoads",
+                "roadsByStatus",
+                "newRoadsYearly",
+                "newRoadsMonthly",
+              ],
+            },
+            {
+              model: "report",
+              data: [
+                "totalReports",
+                "activeReports",
+                "reportsByType",
+                "reportsByStatus",
+                "newReportsYearly",
+                "newReportsMonthly",
+                "reportsWithLocation",
+              ],
+            },
+            {
+              model: "facility",
+              data: [
+                "totalFacilities",
+                "activeFacilities",
+                "facilitiesByType",
+                "facilitiesByStatus",
+                "facilitiesByCategory",
+                "facilitiesWithLocation",
+                "newFacilitiesYearly",
+                "newFacilitiesMonthly",
+              ],
+            },
+          ],
+        });
 
-      if (res?.data) {
-        setMetrics(res.data);
-        setLastUpdated(new Date().toLocaleTimeString());
+        if (res?.data) {
+          setMetrics(res.data);
+          setLastUpdated(new Date().toLocaleTimeString());
+        }
+      }
+      if (user === "admin" && facilityId) {
+        const res = await metricsService.search({
+          metrics: [
+            // {
+            //   model: "road",
+            //   data: [
+            //     "totalRoads",
+            //     "activeRoads",
+            //     "roadsByType",
+            //     "highRiskRoads",
+            //     "roadsByStatus",
+            //     "newRoadsYearly",
+            //     "newRoadsMonthly",
+            //   ],
+            // },
+            {
+              model: "report",
+              data: [
+                "totalReports",
+                "activeReports",
+                "reportsByType",
+                "reportsByStatus",
+                "newReportsYearly",
+                "newReportsMonthly",
+                "reportsWithLocation",
+              ],
+            },
+          ],
+          filter: {
+            facilityId,
+          },
+        });
+
+        if (res?.data) {
+          setMetrics(res.data);
+          setLastUpdated(new Date().toLocaleTimeString());
+        }
       }
     } catch (err) {
       console.error("Error fetching metrics:", err);
@@ -265,125 +308,130 @@ export default function MetricsPage() {
       </div>
 
       {/* Users Section */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
-          <span className="bg-blue-100 text-blue-800 p-2 rounded-lg mr-3">
-            👥
-          </span>
-          User Analytics
-        </h2>
-        <DataGrid>
-          <StatCard
-            title="Total Users"
-            value={metrics.user.totalUsers.toLocaleString()}
-            subtitle="All time"
-            icon="👤"
-          />
-          <StatCard
-            title="New This Month"
-            value={
-              metrics.user.newUsersMonthly[0]?._count.toLocaleString() || "0"
-            }
-            subtitle={`${metrics.user.newUsersMonthly[0]?.month} ${metrics.user.newUsersMonthly[0]?.year}`}
-            trend={{ value: 12, isPositive: true }}
-            icon="📈"
-          />
-          <StatCard
-            title="New This Year"
-            value={
-              metrics.user.newUsersYearly[0]?._count.toLocaleString() || "0"
-            }
-            subtitle="Year to date"
-            icon="📅"
-          />
-          <StatCard
-            title="Growth Rate"
-            value="+12%"
-            subtitle="vs. last month"
-            trend={{ value: 12, isPositive: true }}
-            icon="🚀"
-          />
-        </DataGrid>
-      </section>
-
+      {user === "super_admin" && (
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+            <span className="bg-blue-100 text-blue-800 p-2 rounded-lg mr-3">
+              👥
+            </span>
+            User Analytics
+          </h2>
+          <DataGrid>
+            <StatCard
+              title="Total Users"
+              value={metrics.user.totalUsers.toLocaleString()}
+              subtitle="All time"
+              icon="👤"
+            />
+            <StatCard
+              title="New This Month"
+              value={
+                metrics.user.newUsersMonthly[0]?._count.toLocaleString() || "0"
+              }
+              subtitle={`${metrics.user.newUsersMonthly[0]?.month} ${metrics.user.newUsersMonthly[0]?.year}`}
+              trend={{ value: 12, isPositive: true }}
+              icon="📈"
+            />
+            <StatCard
+              title="New This Year"
+              value={
+                metrics.user.newUsersYearly[0]?._count.toLocaleString() || "0"
+              }
+              subtitle="Year to date"
+              icon="📅"
+            />
+            <StatCard
+              title="Growth Rate"
+              value="+12%"
+              subtitle="vs. last month"
+              trend={{ value: 12, isPositive: true }}
+              icon="🚀"
+            />
+          </DataGrid>
+        </section>
+      )}
       {/* Roads Section */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
-          <span className="bg-orange-100 text-orange-800 p-2 rounded-lg mr-3">
-            🛣️
-          </span>
-          Road Infrastructure
-        </h2>
-        <DataGrid>
-          <StatCard
-            title="Total Roads"
-            value={metrics.road.totalRoads.toLocaleString()}
-            subtitle="Monitored"
-            icon="🛣️"
-          />
-          <StatCard
-            title="Active Roads"
-            value={metrics.road.activeRoads.toLocaleString()}
-            subtitle="Currently tracked"
-            icon="🟢"
-          />
-          <StatCard
-            title="High Risk Roads"
-            value={metrics.road.highRiskRoads.toLocaleString()}
-            subtitle="Requiring attention"
-            icon="⚠️"
-          />
-          <StatCard
-            title="New Roads"
-            value={
-              metrics.road.newRoadsMonthly[0]?._count.toLocaleString() || "0"
-            }
-            subtitle="This month"
-            icon="🆕"
-          />
-        </DataGrid>
+      {user === "super_admin" && (
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+            <span className="bg-orange-100 text-orange-800 p-2 rounded-lg mr-3">
+              🛣️
+            </span>
+            Road Infrastructure
+          </h2>
+          <DataGrid>
+            <StatCard
+              title="Total Roads"
+              value={metrics.road.totalRoads.toLocaleString()}
+              subtitle="Monitored"
+              icon="🛣️"
+            />
+            <StatCard
+              title="Active Roads"
+              value={metrics.road.activeRoads.toLocaleString()}
+              subtitle="Currently tracked"
+              icon="🟢"
+            />
+            <StatCard
+              title="High Risk Roads"
+              value={metrics.road.highRiskRoads.toLocaleString()}
+              subtitle="Requiring attention"
+              icon="⚠️"
+            />
+            <StatCard
+              title="New Roads"
+              value={
+                metrics.road.newRoadsMonthly[0]?._count.toLocaleString() || "0"
+              }
+              subtitle="This month"
+              icon="🆕"
+            />
+          </DataGrid>
 
-        {/* Roads Breakdown */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">Roads by Type</h3>
-            <div className="space-y-3">
-              {metrics.road.roadsByType.map((roadType, index) => (
-                <ProgressBar
-                  key={index}
-                  percentage={
-                    (roadType._count.id / metrics.road.totalRoads) * 100
-                  }
-                  label={`${
-                    roadType.type.charAt(0).toUpperCase() +
-                    roadType.type.slice(1)
-                  }`}
-                />
-              ))}
+          {/* Roads Breakdown */}
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">
+                Roads by Type
+              </h3>
+              <div className="space-y-3">
+                {metrics.road.roadsByType.map((roadType, index) => (
+                  <ProgressBar
+                    key={index}
+                    percentage={
+                      (roadType._count.id / metrics.road.totalRoads) * 100
+                    }
+                    label={`${
+                      roadType.type.charAt(0).toUpperCase() +
+                      roadType.type.slice(1)
+                    }`}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">
+                Road Status Distribution
+              </h3>
+              <div className="space-y-3">
+                {metrics.road.roadsByStatus.map((roadStatus, index) => (
+                  <div
+                    key={index}
+                    className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+                  >
+                    <span className="text-gray-700 capitalize">
+                      {roadStatus.status || "Unspecified"}
+                    </span>
+                    <span className="font-semibold text-gray-900">
+                      {roadStatus._count.id}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">
-              Road Status Distribution
-            </h3>
-            <div className="space-y-3">
-              {metrics.road.roadsByStatus.map((roadStatus, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
-                >
-                  <span className="text-gray-700 capitalize">
-                    {roadStatus.status || "Unspecified"}
-                  </span>
-                  <span className="font-semibold text-gray-900">
-                    {roadStatus._count.id}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Reports Section */}
       <section className="mb-8">
@@ -415,12 +463,12 @@ export default function MetricsPage() {
             subtitle="This month"
             icon="🆕"
           />
-          <StatCard
+          {/* <StatCard
             title="Location Coverage"
             value={`${metrics.report.reportsWithLocation[0]?.percentageWithLocation}%`}
             subtitle="Reports with location data"
             icon="📍"
-          />
+          /> */}
         </DataGrid>
 
         {/* Reports Breakdown */}
@@ -489,105 +537,109 @@ export default function MetricsPage() {
       </section>
 
       {/* Facilities Section */}
-      <section className="mb-8">
-        <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
-          <span className="bg-green-100 text-green-800 p-2 rounded-lg mr-3">
-            🏥
-          </span>
-          Facility Management
-        </h2>
-        <DataGrid>
-          <StatCard
-            title="Total Facilities"
-            value={metrics.facility.totalFacilities.toLocaleString()}
-            subtitle="Registered"
-            icon="🏢"
-          />
-          <StatCard
-            title="Active Facilities"
-            value={metrics.facility.activeFacilities.toLocaleString()}
-            subtitle="Currently operational"
-            icon="🟢"
-          />
-          <StatCard
-            title="New Facilities"
-            value={
-              metrics.facility.newFacilitiesMonthly[0]?._count.toLocaleString() ||
-              "0"
-            }
-            subtitle="This month"
-            icon="🆕"
-          />
-          <StatCard
-            title="Location Data"
-            value={`${metrics.facility.facilitiesWithLocation[0]?.percentageWithLocation}%`}
-            subtitle="Facilities with coordinates"
-            icon="📍"
-          />
-        </DataGrid>
+      {user === "super_admin" && (
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-800 mb-6 flex items-center">
+            <span className="bg-green-100 text-green-800 p-2 rounded-lg mr-3">
+              🏥
+            </span>
+            Facility Management
+          </h2>
+          <DataGrid>
+            <StatCard
+              title="Total Facilities"
+              value={metrics.facility.totalFacilities.toLocaleString()}
+              subtitle="Registered"
+              icon="🏢"
+            />
+            <StatCard
+              title="Active Facilities"
+              value={metrics.facility.activeFacilities.toLocaleString()}
+              subtitle="Currently operational"
+              icon="🟢"
+            />
+            <StatCard
+              title="New Facilities"
+              value={
+                metrics.facility.newFacilitiesMonthly[0]?._count.toLocaleString() ||
+                "0"
+              }
+              subtitle="This month"
+              icon="🆕"
+            />
+            <StatCard
+              title="Location Data"
+              value={`${metrics.facility.facilitiesWithLocation[0]?.percentageWithLocation}%`}
+              subtitle="Facilities with coordinates"
+              icon="📍"
+            />
+          </DataGrid>
 
-        {/* Facilities Breakdown */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">By Type</h3>
-            <div className="space-y-3">
-              {metrics.facility.facilitiesByType.map((facilityType, index) => (
-                <div
-                  key={index}
-                  className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
-                >
-                  <span className="text-gray-700 capitalize">
-                    {facilityType.type}
-                  </span>
-                  <span className="font-semibold text-gray-900">
-                    {facilityType._count.id}
-                  </span>
-                </div>
-              ))}
+          {/* Facilities Breakdown */}
+          <div className="mt-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">By Type</h3>
+              <div className="space-y-3">
+                {metrics.facility.facilitiesByType.map(
+                  (facilityType, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+                    >
+                      <span className="text-gray-700 capitalize">
+                        {facilityType.type}
+                      </span>
+                      <span className="font-semibold text-gray-900">
+                        {facilityType._count.id}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">By Status</h3>
+              <div className="space-y-3">
+                {metrics.facility.facilitiesByStatus.map(
+                  (facilityStatus, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+                    >
+                      <span className="text-gray-700 capitalize">
+                        {facilityStatus.status}
+                      </span>
+                      <span className="font-semibold text-gray-900">
+                        {facilityStatus._count.id}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+            <div className="bg-white rounded-xl border border-gray-200 p-6">
+              <h3 className="font-semibold text-gray-800 mb-4">By Category</h3>
+              <div className="space-y-3">
+                {metrics.facility.facilitiesByCategory.map(
+                  (facilityCategory, index) => (
+                    <div
+                      key={index}
+                      className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
+                    >
+                      <span className="text-gray-700 capitalize">
+                        {facilityCategory.category.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-semibold text-gray-900">
+                        {facilityCategory._count.id}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
             </div>
           </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">By Status</h3>
-            <div className="space-y-3">
-              {metrics.facility.facilitiesByStatus.map(
-                (facilityStatus, index) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
-                  >
-                    <span className="text-gray-700 capitalize">
-                      {facilityStatus.status}
-                    </span>
-                    <span className="font-semibold text-gray-900">
-                      {facilityStatus._count.id}
-                    </span>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-          <div className="bg-white rounded-xl border border-gray-200 p-6">
-            <h3 className="font-semibold text-gray-800 mb-4">By Category</h3>
-            <div className="space-y-3">
-              {metrics.facility.facilitiesByCategory.map(
-                (facilityCategory, index) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0"
-                  >
-                    <span className="text-gray-700 capitalize">
-                      {facilityCategory.category.replace(/_/g, " ")}
-                    </span>
-                    <span className="font-semibold text-gray-900">
-                      {facilityCategory._count.id}
-                    </span>
-                  </div>
-                )
-              )}
-            </div>
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
 }

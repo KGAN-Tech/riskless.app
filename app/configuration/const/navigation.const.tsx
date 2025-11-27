@@ -239,7 +239,7 @@ export const MAIN_NAVIGATION: NavigationItem[] = [
     name: "Notification",
     href: "/notification-ms",
     icon: Bell,
-    userTypes: ["admin", "organization"],
+    userTypes: ["admin"],
   },
 
   {

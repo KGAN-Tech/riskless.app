@@ -16,7 +16,14 @@ import L, {
   Map as LeafletMap,
 } from "leaflet";
 import { Button } from "@/components/atoms/button";
-import { Compass, AlertTriangle, MapPin, Navigation, Flag } from "lucide-react";
+import {
+  Compass,
+  AlertTriangle,
+  MapPin,
+  Navigation,
+  Flag,
+  X,
+} from "lucide-react";
 
 interface HighRiskRoad {
   id: string;
@@ -88,15 +95,69 @@ function getDistanceMeters(
   return R * c;
 }
 
+// 🎤 Text-to-speech function
+// 🎤 Enhanced Text-to-speech function with user interaction check
+const speakWarning = (warning: HighRiskRoad) => {
+  if (!("speechSynthesis" in window)) {
+    console.error("Speech synthesis not supported");
+    return;
+  }
+
+  try {
+    // Stop any ongoing speech
+    window.speechSynthesis.cancel();
+
+    const speech = new SpeechSynthesisUtterance();
+    speech.text = `Warning! High risk area ahead. ${warning.title}. Please proceed with caution.`;
+    speech.volume = 1;
+    speech.rate = 0.9;
+    speech.pitch = 1;
+
+    console.log("🔊 Attempting to speak:", speech.text);
+
+    // Better voice handling with fallback
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        const englishVoice = voices.find((voice) => voice.lang.includes("en"));
+        if (englishVoice) {
+          speech.voice = englishVoice;
+        }
+        return true;
+      }
+      return false;
+    };
+
+    // Try to load voices immediately
+    if (!loadVoices()) {
+      // If voices aren't loaded, wait for them
+      window.speechSynthesis.onvoiceschanged = () => {
+        loadVoices();
+        window.speechSynthesis.onvoiceschanged = null; // Clean up
+      };
+    }
+
+    speech.onstart = () => console.log("🔊 Speech started");
+    speech.onend = () => console.log("🔊 Speech ended");
+    speech.onerror = (event) => {
+      console.error("🔊 Speech error:", event.error);
+      if (event.error === "not-allowed") {
+        console.log("🔊 Speech blocked: user interaction required");
+      }
+    };
+
+    // Add a small delay to ensure cleanup is complete
+    setTimeout(() => {
+      window.speechSynthesis.speak(speech);
+    }, 50);
+  } catch (error) {
+    console.error("Error in speakWarning:", error);
+  }
+};
 // 🏥 Facility type to icon mapping
 const getFacilityIcon = (category: string, status: string) => {
-  const baseIconUrl = "https://cdn-icons-png.flaticon.com/512/";
   const size = [25, 25] as [number, number];
   const anchor = [12, 25] as [number, number];
-
-  // Color based on status
-  const color =
-    status === "open" ? "green" : status === "closed" ? "red" : "gray";
 
   let iconUrl = "";
 
@@ -150,6 +211,10 @@ export function RiskMap({
     null
   );
   const [showChoiceModal, setShowChoiceModal] = useState(false);
+  const [isFullScreen, setIsFullScreen] = useState(false);
+  const [travelStartLocation, setTravelStartLocation] =
+    useState<LatLngExpression | null>(null);
+  const [isSpeechSupported, setIsSpeechSupported] = useState(false);
 
   const mapRef = useRef<LeafletMap | null>(null);
   const highRiskIcon = L.icon({
@@ -187,6 +252,24 @@ export function RiskMap({
     iconAnchor: [15, 30],
   });
 
+  // ✅ Check speech synthesis support
+  useEffect(() => {
+    setIsSpeechSupported("speechSynthesis" in window);
+
+    // Load voices when they become available
+    const loadVoices = () => {
+      const voices = window.speechSynthesis.getVoices();
+      if (voices.length > 0) {
+        console.log("Speech synthesis voices loaded:", voices.length);
+      }
+    };
+
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+      loadVoices(); // Initial load
+    }
+  }, []);
+
   // ✅ Fetch route from OSRM
   const fetchRoute = async (start: LatLngExpression, end: LatLngExpression) => {
     try {
@@ -207,15 +290,31 @@ export function RiskMap({
     }
   };
 
-  const handleStartTravel = () => {
-    if (!currentLocation || !destination) return;
+  const handleStartTravel = (startLocation?: LatLngExpression) => {
+    const start = startLocation || liveLocation || currentLocation;
+    if (!start || !destination) return;
+
     setIsTravelling(true);
-    fetchRoute(currentLocation, destination);
+    setTravelStartLocation(start);
+    fetchRoute(start, destination);
   };
 
   const handleStopTravel = () => {
     setIsTravelling(false);
     setRoute([]);
+    setTravelStartLocation(null);
+    // Stop any ongoing speech when travel stops
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
+  };
+
+  const toggleFullScreen = () => {
+    setIsFullScreen(!isFullScreen);
+    // Force map to re-render and properly resize
+    setTimeout(() => {
+      mapRef.current?.invalidateSize();
+    }, 100);
   };
 
   // ✅ Detect double-click
@@ -249,9 +348,20 @@ export function RiskMap({
     let watchId: number;
     if (isTravelling) {
       watchId = navigator.geolocation.watchPosition(
-        (pos) => setLiveLocation([pos.coords.latitude, pos.coords.longitude]),
+        (pos) => {
+          const newLocation: [number, number] = [
+            pos.coords.latitude,
+            pos.coords.longitude,
+          ];
+          setLiveLocation(newLocation);
+
+          // Update map view to follow user during travel
+          if (mapRef.current) {
+            mapRef.current.setView(newLocation, mapRef.current.getZoom());
+          }
+        },
         (err) => console.error("Tracking error:", err),
-        { enableHighAccuracy: true }
+        { enableHighAccuracy: true, maximumAge: 1000, timeout: 5000 }
       );
     }
     return () => {
@@ -259,32 +369,82 @@ export function RiskMap({
     };
   }, [isTravelling]);
 
-  // ✅ Warning detection
+  // ✅ Warning detection with immediate check and periodic updates
   useEffect(() => {
     if (!liveLocation) return;
-    const [lat, lng] = liveLocation as [number, number];
-    const now = Date.now();
 
-    for (const road of highRiskRoads) {
-      const distance = getDistanceMeters(
-        [lat, lng],
-        [road.latitude, road.longitude]
-      );
+    const checkWarnings = () => {
+      const [lat, lng] = liveLocation as [number, number];
+      const now = Date.now();
 
-      const lastAlert = cooldowns[road.id] || 0;
-      const cooldownPassed = now - lastAlert >= 60_000; // 1 min
+      for (const road of highRiskRoads) {
+        const distance = getDistanceMeters(
+          [lat, lng],
+          [road.latitude, road.longitude]
+        );
 
-      if (distance <= 100 && cooldownPassed) {
-        setWarning(road);
-        setCooldowns((prev) => ({ ...prev, [road.id]: now }));
-        break;
+        const lastAlert = cooldowns[road.id] || 0;
+        const cooldownPassed = now - lastAlert >= 60_000; // 1 min
+
+        if (distance <= 100 && cooldownPassed) {
+          setWarning(road);
+          setCooldowns((prev) => ({ ...prev, [road.id]: now }));
+
+          // 🔊 Trigger text-to-speech warning
+          if (isSpeechSupported) {
+            speakWarning(road);
+          }
+          break;
+        }
       }
+    };
+
+    // Check immediately
+    checkWarnings();
+
+    // Set up periodic checking every 3 seconds while travelling
+    let interval: NodeJS.Timeout;
+    if (isTravelling) {
+      interval = setInterval(checkWarnings, 3000);
     }
-  }, [liveLocation, highRiskRoads, cooldowns]);
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [liveLocation, highRiskRoads, cooldowns, isSpeechSupported, isTravelling]);
+  // ✅ Handle choice modal actions
+  const handleChoiceAction = (action: string, coords: [number, number]) => {
+    setShowChoiceModal(false);
+
+    if (action === "startTravel") {
+      // Set the pinned location as starting point for travel
+      handleStartTravel(coords);
+    }
+
+    onChooseAction?.(action, coords);
+  };
 
   return (
     <div className="space-y-3 relative">
-      <Card className="h-64 rounded-3xl calm-shadow border-border overflow-hidden relative">
+      <Card
+        className={`${
+          isFullScreen ? "h-[80vh] rounded-2xl" : "h-64 rounded-3xl"
+        } calm-shadow border-border overflow-hidden relative transition-all duration-300`}
+      >
+        <div className="absolute top-3 right-3 z-[1000] flex gap-2">
+          <Button
+            onClick={toggleFullScreen}
+            size="sm"
+            className="bg-white/90 hover:bg-white border text-green-700 border-gray-300 rounded-lg shadow-md"
+          >
+            {isFullScreen ? (
+              <X className="w-4 h-4" />
+            ) : (
+              <Compass className="w-4 h-4" />
+            )}
+          </Button>
+        </div>
+
         <MapContainer
           ref={mapRef}
           center={liveLocation || currentLocation || [14.5995, 120.9842]}
@@ -298,24 +458,43 @@ export function RiskMap({
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
           {isTravelling && route.length > 0 && <FitToRoute route={route} />}
+
+          {/* Current location marker */}
           {liveLocation && (
             <Marker position={liveLocation} icon={currentLocationIcon}>
               <Popup>Your current location</Popup>
             </Marker>
           )}
+
+          {/* Travel start location marker (if different from current location) */}
+          {travelStartLocation &&
+            isTravelling &&
+            travelStartLocation !== liveLocation && (
+              <Marker position={travelStartLocation} icon={destinationIcon}>
+                <Popup>Travel start point</Popup>
+              </Marker>
+            )}
+
+          {/* Destination marker */}
           {destination && (
             <Marker position={destination} icon={destinationIcon}>
               <Popup>Destination</Popup>
             </Marker>
           )}
+
+          {/* Route polyline */}
           {route.length > 0 && (
             <Polyline positions={route} color="blue" weight={4} />
           )}
+
+          {/* Pinned location marker */}
           {pinnedLocation && (
             <Marker position={pinnedLocation}>
               <Popup>Pinned Location</Popup>
             </Marker>
           )}
+
+          {/* High risk roads markers */}
           {highRiskRoads.map((road) => (
             <Marker
               key={road.id}
@@ -336,8 +515,8 @@ export function RiskMap({
               </Popup>
             </Marker>
           ))}
-          {/* 🏥 Facilities Markers */}
 
+          {/* 🏥 Facilities Markers */}
           {facilities && facilities.length > 0 ? (
             facilities.map((facility) => {
               try {
@@ -435,8 +614,8 @@ export function RiskMap({
         </MapContainer>
       </Card>
 
-      {/* 🏥 Facilities Legend */}
-      {facilities && facilities.length > 0 && (
+      {/* 🏥 Facilities Legend - Only show when not in full screen */}
+      {!isFullScreen && facilities && facilities.length > 0 && (
         <Card className="p-3 rounded-2xl calm-shadow border-border">
           <h3 className="text-sm font-semibold mb-2">Facilities Legend</h3>
           <div className="grid grid-cols-2 gap-2 text-xs">
@@ -476,23 +655,26 @@ export function RiskMap({
         </Card>
       )}
 
-      <div className="flex justify-center gap-3">
-        {!isTravelling ? (
-          <Button
-            onClick={handleStartTravel}
-            className="bg-green-600 hover:bg-green-700 rounded-2xl"
-          >
-            Start Travel
-          </Button>
-        ) : (
-          <Button
-            onClick={handleStopTravel}
-            className="bg-red-600 hover:bg-red-700 rounded-2xl"
-          >
-            Stop Travel
-          </Button>
-        )}
-      </div>
+      {/* Travel Controls - Only show when not in full screen */}
+      {!isFullScreen && (
+        <div className="flex justify-center gap-3">
+          {!isTravelling ? (
+            <Button
+              onClick={() => handleStartTravel()}
+              className="bg-green-600 hover:bg-green-700 rounded-2xl"
+            >
+              Start Travel
+            </Button>
+          ) : (
+            <Button
+              onClick={handleStopTravel}
+              className="bg-red-600 hover:bg-red-700 rounded-2xl"
+            >
+              Stop Travel
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* 🚨 Warning Modal */}
       {warning && (
@@ -506,6 +688,11 @@ export function RiskMap({
               You are near <strong>{warning.title}</strong> —{" "}
               {warning.description}
             </p>
+            {!isSpeechSupported && (
+              <p className="text-xs text-amber-600">
+                🔊 Voice alerts not supported in your browser
+              </p>
+            )}
             <Button
               className="bg-red-600 hover:bg-red-700 text-white rounded-xl mt-2"
               onClick={() => setWarning(null)}
@@ -530,28 +717,25 @@ export function RiskMap({
             <div className="grid grid-cols-1 gap-3">
               <Button
                 className="bg-green-600 hover:bg-green-700 rounded-xl"
-                onClick={() => {
-                  onChooseAction?.("startTravel", pinnedLocation);
-                  setShowChoiceModal(false);
-                }}
+                onClick={() =>
+                  handleChoiceAction("startTravel", pinnedLocation)
+                }
               >
                 <Navigation className="w-4 h-4 mr-2" /> Start Travel
               </Button>
               <Button
                 className="bg-amber-500 hover:bg-amber-600 rounded-xl"
-                onClick={() => {
-                  onChooseAction?.("reportIncident", pinnedLocation);
-                  setShowChoiceModal(false);
-                }}
+                onClick={() =>
+                  handleChoiceAction("reportIncident", pinnedLocation)
+                }
               >
                 <AlertTriangle className="w-4 h-4 mr-2" /> Report Incident
               </Button>
               <Button
                 className="bg-pink-500 hover:bg-pink-600 rounded-xl"
-                onClick={() => {
-                  onChooseAction?.("reportHighRisk", pinnedLocation);
-                  setShowChoiceModal(false);
-                }}
+                onClick={() =>
+                  handleChoiceAction("reportHighRisk", pinnedLocation)
+                }
               >
                 <Flag className="w-4 h-4 mr-2" /> Report High-Risk Road
               </Button>

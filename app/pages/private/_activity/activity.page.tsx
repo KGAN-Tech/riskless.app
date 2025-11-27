@@ -170,10 +170,8 @@ export function ActivityPage() {
 
         <div className="flex items-center gap-4 text-xs text-muted-foreground">
           <div className="flex items-center gap-1">
-            <MapPin className="w-3 h-3 text-primary" />
-            <span>
-              {item.location || `${item.latitude}, ${item.longitude}`}
-            </span>
+            {/* <MapPin className="w-3 h-3 text-primary" />
+            <span>{`${item.latitude}, ${item.longitude}`}</span> */}
           </div>
           {item.date && item.time && (
             <div className="flex items-center gap-1">
@@ -186,7 +184,8 @@ export function ActivityPage() {
         </div>
 
         <div className="flex items-center justify-between pt-2 border-t border-green-100">
-          {getStatusBadge(item.status)}
+          {/* {getStatusBadge(item.status)} */}
+          <div></div>
           <Button
             variant="ghost"
             size="sm"
@@ -321,16 +320,16 @@ export function ActivityPage() {
             </p>
 
             <div className="flex gap-2 mb-3">
-              {getStatusBadge(modalItem.status || "unknown")}
-              {getTypeBadge(modalItem.type || "unknown")}
+              {/* {getStatusBadge(modalItem.status || "unknown")} */}
+              {getTypeBadge(modalItem.type || "No Type")}
             </div>
 
             <div className="text-xs text-muted-foreground mb-3 space-y-1">
-              <p>
+              {/* <p>
                 <MapPin className="inline w-3 h-3 mr-1 text-primary" />
                 {modalItem.location ||
                   `${modalItem.latitude}, ${modalItem.longitude}`}
-              </p>
+              </p> */}
               {modalItem.date && modalItem.time && (
                 <p>
                   <Calendar className="inline w-3 h-3 mr-1 text-pink-400" />

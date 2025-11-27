@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ChangeEvent } from "react";
 import { roadService } from "@/services/road.service";
 import {
   Card,
@@ -28,6 +28,7 @@ import {
   Wrench,
   Eye,
   Shield,
+  Map,
 } from "lucide-react";
 
 // 🔹 Prisma Enums (mirror of your backend enums)
@@ -191,6 +192,8 @@ export default function RoadMSPage() {
     type: "high_risk_road_candidate",
     otherType: "",
     tags: "",
+    location: "",
+    mapLink: "",
   });
 
   // -----------------------------------------------------
@@ -240,6 +243,8 @@ export default function RoadMSPage() {
       type: "high_risk_road_candidate",
       otherType: "",
       tags: "",
+      location: "",
+      mapLink: "",
     });
     setOpen(true);
   };
@@ -259,8 +264,129 @@ export default function RoadMSPage() {
       type: road.type ?? "high_risk_road_candidate",
       otherType: road.otherType ?? "",
       tags: (road.tags || []).join(", "),
+      location: road.location ?? "",
+      mapLink: road.mapLink ?? "",
     });
     setOpen(true);
+  };
+
+  // -----------------------------------------------------
+  // 🔹 Extract coordinates from Google Maps link
+  // -----------------------------------------------------
+  const extractCoordinatesFromMapLink = (
+    mapLink: string
+  ): { latitude: number | undefined; longitude: number | undefined } => {
+    try {
+      // Parse the URL
+      const url = new URL(mapLink);
+
+      // Method 1: Check for @lat,lng format (most common in Google Maps links)
+      const atParams = url.pathname.match(/@(-?\d+\.\d+),(-?\d+\.\d+)/);
+      if (atParams) {
+        return {
+          latitude: parseFloat(atParams[1]),
+          longitude: parseFloat(atParams[2]),
+        };
+      }
+
+      // Method 2: Check for query parameters
+      const queryParams = new URLSearchParams(url.search);
+      const query = queryParams.get("query");
+      if (query) {
+        const coords = query.match(/(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (coords) {
+          return {
+            latitude: parseFloat(coords[1]),
+            longitude: parseFloat(coords[2]),
+          };
+        }
+      }
+
+      // Method 3: Check for data parameters in the path
+      const dataParams = url.pathname.match(/data=([^/]+)/);
+      if (dataParams) {
+        const decodedData = decodeURIComponent(dataParams[1]);
+        const coords = decodedData.match(/(-?\d+\.\d+),(-?\d+\.\d+)/);
+        if (coords) {
+          return {
+            latitude: parseFloat(coords[1]),
+            longitude: parseFloat(coords[2]),
+          };
+        }
+      }
+    } catch (error) {
+      console.error("Error parsing map link:", error);
+    }
+
+    return { latitude: undefined, longitude: undefined };
+  };
+
+  // -----------------------------------------------------
+  // 🔹 Handle Map Link Change
+  // -----------------------------------------------------
+  const handleMapLinkChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const mapLink = e.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      mapLink: mapLink,
+    }));
+
+    // Auto-extract coordinates when a valid Google Maps link is provided
+    if (
+      mapLink.includes("google.com/maps") ||
+      mapLink.includes("maps.google")
+    ) {
+      const { latitude, longitude } = extractCoordinatesFromMapLink(mapLink);
+
+      if (latitude && longitude) {
+        setForm((prev) => ({
+          ...prev,
+          latitude: latitude.toString(),
+          longitude: longitude.toString(),
+          mapLink: mapLink,
+        }));
+      }
+    }
+  };
+
+  // -----------------------------------------------------
+  // 🔹 Go to Map Function
+  // -----------------------------------------------------
+  const handleGoToMap = (road?: any) => {
+    if (road) {
+      // For existing roads in the table
+      if (road.mapLink) {
+        window.open(road.mapLink, "_blank");
+      } else if (road.latitude && road.longitude) {
+        const googleMapsUrl = `https://www.google.com/maps?q=${road.latitude},${road.longitude}`;
+        window.open(googleMapsUrl, "_blank");
+      } else if (road.location) {
+        const searchQuery = encodeURIComponent(road.location);
+        const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
+        window.open(googleMapsUrl, "_blank");
+      }
+    } else {
+      // For form data (when creating/editing)
+      if (form.mapLink) {
+        window.open(form.mapLink, "_blank");
+      } else if (form.latitude && form.longitude) {
+        const googleMapsUrl = `https://www.google.com/maps?q=${form.latitude},${form.longitude}`;
+        window.open(googleMapsUrl, "_blank");
+      } else if (form.location) {
+        const searchQuery = encodeURIComponent(form.location);
+        const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
+        window.open(googleMapsUrl, "_blank");
+      }
+    }
+  };
+
+  // -----------------------------------------------------
+  // 🔹 Format Coordinate
+  // -----------------------------------------------------
+  const formatCoordinate = (value: number | undefined): string => {
+    if (!value || isNaN(value)) return "";
+    return value.toFixed(6);
   };
 
   // -----------------------------------------------------
@@ -284,6 +410,8 @@ export default function RoadMSPage() {
             .map((t) => t.trim())
             .filter(Boolean)
         : [],
+      location: form.location || undefined,
+      mapLink: form.mapLink || undefined,
     };
 
     try {
@@ -317,9 +445,9 @@ export default function RoadMSPage() {
   };
 
   // -----------------------------------------------------
-  // 🔹 Format Coordinates
+  // 🔹 Format Coordinates for display
   // -----------------------------------------------------
-  const formatCoordinate = (coord: number) => {
+  const formatCoordinateDisplay = (coord: number) => {
     return coord ? coord.toFixed(6) : "N/A";
   };
 
@@ -428,20 +556,9 @@ export default function RoadMSPage() {
                       className="hover:bg-gray-50 transition-colors"
                     >
                       <td className="p-3">
-                        {road.mapLink ? (
-                          <a
-                            href={road.mapLink}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="font-medium text-gray-900"
-                          >
-                            {road.title}
-                          </a>
-                        ) : (
-                          <div className="font-medium text-gray-900">
-                            {road.title}
-                          </div>
-                        )}
+                        <div className="font-medium text-gray-900">
+                          {road.title}
+                        </div>
                         {road.location && (
                           <div className="text-sm text-gray-500 flex items-center gap-1 mt-1">
                             <MapPin className="w-3 h-3" />
@@ -456,8 +573,23 @@ export default function RoadMSPage() {
                       </td>
                       <td className="p-3">
                         <div className="text-xs text-gray-600 space-y-1">
-                          <div>Lat: {formatCoordinate(road.latitude)}</div>
-                          <div>Lng: {formatCoordinate(road.longitude)}</div>
+                          <div>
+                            Lat: {formatCoordinateDisplay(road.latitude)}
+                          </div>
+                          <div>
+                            Lng: {formatCoordinateDisplay(road.longitude)}
+                          </div>
+                          {road.mapLink && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-6 text-xs mt-1"
+                              onClick={() => handleGoToMap(road)}
+                            >
+                              <Map className="w-3 h-3 mr-1" />
+                              Go to Map
+                            </Button>
+                          )}
                         </div>
                       </td>
                       <td className="p-3">{renderTypeBadge(road.type)}</td>
@@ -481,6 +613,14 @@ export default function RoadMSPage() {
                       </td>
                       <td className="p-3">
                         <div className="flex justify-center gap-2">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleGoToMap(road)}
+                            className="h-8 px-2 border-green-200 text-green-700 hover:bg-green-50"
+                          >
+                            <Map className="w-3 h-3" />
+                          </Button>
                           <Button
                             size="sm"
                             variant="outline"
@@ -539,7 +679,7 @@ export default function RoadMSPage() {
                 />
               </div>
 
-              <div>
+              {/* <div>
                 <Label
                   htmlFor="description"
                   className="text-sm font-medium text-gray-700"
@@ -555,44 +695,90 @@ export default function RoadMSPage() {
                   className="mt-1"
                   placeholder="Enter road description"
                 />
+              </div> */}
+
+              {/* Road Information Section */}
+              <div className="border-t pt-4">
+                <div className="flex justify-between items-center">
+                  <h3 className="font-semibold mb-3">
+                    Road Location Information
+                  </h3>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="location">Road Location</Label>
+                    <Input
+                      id="location"
+                      name="location"
+                      value={form.location}
+                      onChange={handleChange}
+                      placeholder="General location"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="flex justify-between items-center gap-4">
+                <button
+                  type="button"
+                  onClick={() => handleGoToMap()}
+                  className="flex gap-2 text-gray-500 items-center cursor-pointer border px-2 py-1 rounded hover:bg-gray-100"
+                >
+                  <Map className="w-4 h-4" />
+                  <span>Go to Map</span>
+                </button>
+                <div className="flex-1">
+                  <Label htmlFor="mapLink">Map Link</Label>
+                  <Input
+                    id="mapLink"
+                    name="mapLink"
+                    type="text"
+                    value={form.mapLink}
+                    onChange={handleMapLinkChange}
+                    placeholder="Paste Google Maps link to auto-fill coordinates"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">
+                    Paste a Google Maps link to automatically extract
+                    coordinates
+                  </p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 mt-2">
                 <div>
-                  <Label
-                    htmlFor="longitude"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Longitude
-                  </Label>
+                  <Label htmlFor="longitude">Longitude</Label>
                   <Input
                     id="longitude"
                     type="number"
+                    step="any"
                     name="longitude"
                     value={form.longitude}
                     onChange={handleChange}
-                    step="any"
-                    className="mt-1"
                     placeholder="0.000000"
                   />
+                  {form.longitude && (
+                    <p className="text-xs text-green-600">
+                      Formatted: {formatCoordinate(parseFloat(form.longitude))}
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <Label
-                    htmlFor="latitude"
-                    className="text-sm font-medium text-gray-700"
-                  >
-                    Latitude
-                  </Label>
+                  <Label htmlFor="latitude">Latitude</Label>
                   <Input
                     id="latitude"
                     type="number"
+                    step="any"
                     name="latitude"
                     value={form.latitude}
                     onChange={handleChange}
-                    step="any"
-                    className="mt-1"
                     placeholder="0.000000"
                   />
+                  {form.latitude && (
+                    <p className="text-xs text-green-600">
+                      Formatted: {formatCoordinate(parseFloat(form.latitude))}
+                    </p>
+                  )}
                 </div>
               </div>
 

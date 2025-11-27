@@ -21,7 +21,7 @@ export default function NotificationRoute() {
     // render if authenticated
     <div>
       {isRole(
-        ["super_admin", "admin"],
+        ["super_admin"],
         <MainProtectedLayout>
           <NotificationPage />
         </MainProtectedLayout>,

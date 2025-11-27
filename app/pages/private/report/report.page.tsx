@@ -317,6 +317,8 @@ interface User {
   id: string;
   userName?: string;
   email?: string;
+  role?: string;
+  facilityId?: string;
 }
 
 interface Road {
@@ -324,13 +326,20 @@ interface Road {
   title: string;
   location?: string;
   mapLink?: string;
+  longitude?: number;
+  latitude?: number;
+  description?: string;
+  status?: string;
+  tags?: string[];
+  type?: string;
+  otherType?: string;
+  isHighRisk?: boolean;
 }
 
 interface Facility {
   id: string;
   name: string;
   location?: string;
-  // Add other facility properties as needed
 }
 
 interface Report {
@@ -387,7 +396,6 @@ export default function ReportPage() {
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [facilitySearch, setFacilitySearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
-
   const [formData, setFormData] = useState<ReportForm>({
     id: "",
     title: "",
@@ -399,7 +407,6 @@ export default function ReportPage() {
     imageFiles: [],
     createdById: "",
     otherType: "",
-    // Road fields
     roadTitle: "",
     roadDescription: "",
     roadLocation: "",
@@ -419,14 +426,33 @@ export default function ReportPage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  const currentUser = getUserFromLocalStorage()?.user;
+
   const loadReports = async () => {
     setLoading(true);
     try {
+      const user = getUserFromLocalStorage()?.user;
       const params: any = { query };
       if (query) params.query = query;
 
+      // Server-side filtering approach (recommended)
+      if (user?.role === "admin" && user?.facilityId) {
+        params.facilityId = user.facilityId;
+      }
+
       const res = await reportService.getAll(params);
-      setReports(res.data || []);
+
+      // Client-side filtering as fallback
+      let filteredReports = res.data || [];
+
+      if (user?.role === "admin" && user?.facilityId && !params.facilityId) {
+        // Only apply client-side filtering if server doesn't support facilityId param
+        filteredReports = filteredReports.filter(
+          (report: Report) => report.facilityId === user.facilityId
+        );
+      }
+
+      setReports(filteredReports);
       setTotalPages(res.totalPages || 1);
     } catch (err) {
       console.error("Error loading reports:", err);
@@ -574,7 +600,6 @@ export default function ReportPage() {
       imageFiles: [],
       createdById: "",
       otherType: "",
-      // Road fields
       roadTitle: "",
       roadDescription: "",
       roadLocation: "",
@@ -591,6 +616,29 @@ export default function ReportPage() {
   };
 
   const handleEdit = (r: Report) => {
+    console.log("Editing report:", r);
+    console.log("Road data:", r.road);
+    console.log("Road coordinates:", {
+      longitude: r.road?.longitude,
+      latitude: r.road?.latitude,
+    });
+
+    // Use the direct coordinates from the road object if available
+    // Otherwise try to extract from map link as fallback
+    const coordinates = {
+      longitude: r.road?.longitude,
+      latitude: r.road?.latitude,
+    };
+
+    // If direct coordinates are not available, try to extract from map link
+    if ((!coordinates.longitude || !coordinates.latitude) && r.road?.mapLink) {
+      const extractedCoords = extractCoordinatesFromMapLink(r.road.mapLink);
+      coordinates.longitude = extractedCoords.longitude;
+      coordinates.latitude = extractedCoords.latitude;
+    }
+
+    console.log("Final coordinates to use:", coordinates);
+
     setFormData({
       id: r.id,
       title: r.title,
@@ -605,18 +653,24 @@ export default function ReportPage() {
       reportToId: r.reportToId,
       roadId: r.roadId,
       facilityId: r.facilityId,
-      // Reset road creation fields when editing
-      roadTitle: "",
-      roadDescription: "",
-      roadLocation: "",
-      roadLongitude: undefined,
-      roadLatitude: undefined,
-      roadStatus: "",
-      roadTags: "",
-      roadType: "",
-      roadOtherType: "",
-      roadMapLink: "",
+      // Preserve ALL road data from the existing report
+      roadTitle: r.road?.title || "",
+      roadDescription: r.road?.description || "",
+      roadLocation: r.road?.location || "",
+      roadLongitude: coordinates.longitude,
+      roadLatitude: coordinates.latitude,
+      roadStatus: r.road?.status || "",
+      roadTags: r.road?.tags?.join(", ") || "",
+      roadType: r.road?.type || "",
+      roadOtherType: r.road?.otherType || "",
+      roadMapLink: r.road?.mapLink || "",
     });
+
+    console.log("Form data after setting - coordinates:", {
+      roadLongitude: coordinates.longitude,
+      roadLatitude: coordinates.latitude,
+    });
+
     setFacilitySearch(r.facility?.name || "");
     setOpen(true);
   };
@@ -762,7 +816,23 @@ export default function ReportPage() {
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Report Management</h1>
-        <Button onClick={() => setOpen(true)}>New Report</Button>
+        <div className="flex items-center gap-4">
+          {/* {currentUser && (
+            <div className="text-sm text-gray-600">
+              Logged in as:{" "}
+              <span className="font-medium">{currentUser.userName}</span>
+              <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                {currentUser.role === "super_admin" ? "Super Admin" : "Admin"}
+              </span>
+              {currentUser.role === "admin" && currentUser.facilityId && (
+                <span className="ml-2 text-xs text-gray-500">
+                  (Viewing reports from your facility only)
+                </span>
+              )}
+            </div>
+          )} */}
+          <Button onClick={() => setOpen(true)}>New Report</Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

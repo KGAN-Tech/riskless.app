@@ -2,12 +2,6 @@ import { useEffect, useState, type JSX } from "react";
 import { Card } from "@/components/atoms/card";
 import { Badge } from "@/components/atoms/badge";
 import {
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-} from "@/components/atoms/tabs";
-import {
   Bell,
   AlertTriangle,
   Newspaper,
@@ -28,13 +22,7 @@ type NotificationType = {
 };
 
 export function NotificationPage() {
-  const [notifications, setNotifications] = useState<{
-    alerts: NotificationType[];
-    news: NotificationType[];
-    updates: NotificationType[];
-    rescue: NotificationType[];
-  }>({ alerts: [], news: [], updates: [], rescue: [] });
-
+  const [notifications, setNotifications] = useState<NotificationType[]>([]);
   const [selectedNotification, setSelectedNotification] =
     useState<NotificationType | null>(null);
 
@@ -42,18 +30,7 @@ export function NotificationPage() {
     try {
       const res = await notificationService.getAll();
       const data = res.data;
-
-      const alerts = data.filter((n: any) => n.type === "alert");
-      const news = data.filter((n: any) => n.type === "news");
-      const updates = data.filter((n: any) => n.type === "app_update");
-      const rescue = data.filter((n: any) => n.type === "rescue");
-
-      setNotifications({
-        alerts,
-        news,
-        updates,
-        rescue,
-      });
+      setNotifications(data);
     } catch (error) {
       console.error("Failed to fetch notifications:", error);
     }
@@ -63,11 +40,36 @@ export function NotificationPage() {
     fetchNotifications();
   }, []);
 
-  const renderNotificationCard = (
-    item: NotificationType,
-    icon: JSX.Element,
-    extra?: JSX.Element
-  ) => (
+  const getIconForType = (type: string) => {
+    switch (type) {
+      case "alert":
+        return <AlertTriangle className="w-6 h-6 text-red-500" />;
+      case "news":
+        return <Newspaper className="w-6 h-6 text-blue-500" />;
+      case "app_update":
+        return <Info className="w-6 h-6 text-pink-500" />;
+      case "rescue":
+        return <AlertTriangle className="w-6 h-6 text-primary" />;
+      default:
+        return <Bell className="w-6 h-6 text-gray-500" />;
+    }
+  };
+
+  const getExtraContent = (type: string) => {
+    if (type === "alert") {
+      return (
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <div className="flex items-center gap-1">
+            <MapPin className="w-3 h-3 text-primary" />
+            <span className="truncate">Location info</span>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const renderNotificationCard = (item: NotificationType) => (
     <Card
       key={item.id}
       onClick={() => setSelectedNotification(item)}
@@ -75,7 +77,7 @@ export function NotificationPage() {
     >
       <div className="flex gap-3">
         <div className="w-11 h-11 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-          {icon}
+          {getIconForType(item.type)}
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-start justify-between gap-2 mb-1">
@@ -89,7 +91,7 @@ export function NotificationPage() {
           <p className="text-xs text-muted-foreground mb-2">
             {item.description}
           </p>
-          {extra}
+          {getExtraContent(item.type)}
           <p className="text-xs text-muted-foreground">
             {new Date(item.createdAt).toLocaleString()}
           </p>
@@ -117,77 +119,22 @@ export function NotificationPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <Tabs defaultValue="alerts" className="w-full">
-          <TabsList className="grid w-full grid-cols-4 bg-green-50 rounded-2xl p-1">
-            <TabsTrigger
-              value="alerts"
-              className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs rounded-xl"
-            >
-              Alerts
-            </TabsTrigger>
-            <TabsTrigger
-              value="news"
-              className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs rounded-xl"
-            >
-              News
-            </TabsTrigger>
-            <TabsTrigger
-              value="updates"
-              className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs rounded-xl"
-            >
-              Updates
-            </TabsTrigger>
-            <TabsTrigger
-              value="rescue"
-              className="data-[state=active]:bg-white data-[state=active]:text-primary text-xs rounded-xl"
-            >
-              Rescue
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="alerts" className="space-y-3 mt-4">
-            {notifications.alerts.map((item) =>
-              renderNotificationCard(
-                item,
-                <AlertTriangle className="w-6 h-6 text-red-500" />,
-                <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                  <div className="flex items-center gap-1">
-                    <MapPin className="w-3 h-3 text-primary" />
-                    <span className="truncate">Location info</span>
-                  </div>
-                </div>
-              )
-            )}
-          </TabsContent>
-
-          <TabsContent value="news" className="space-y-3 mt-4">
-            {notifications.news.map((item) =>
-              renderNotificationCard(
-                item,
-                <Newspaper className="w-6 h-6 text-blue-500" />
-              )
-            )}
-          </TabsContent>
-
-          <TabsContent value="updates" className="space-y-3 mt-4">
-            {notifications.updates.map((item) =>
-              renderNotificationCard(
-                item,
-                <Info className="w-6 h-6 text-pink-500" />
-              )
-            )}
-          </TabsContent>
-
-          <TabsContent value="rescue" className="space-y-3 mt-4">
-            {notifications.rescue.map((item) =>
-              renderNotificationCard(
-                item,
-                <AlertTriangle className="w-6 h-6 text-primary" />
-              )
-            )}
-          </TabsContent>
-        </Tabs>
+        {/* Notification List */}
+        <div className="space-y-3">
+          {notifications.length > 0 ? (
+            notifications.map(renderNotificationCard)
+          ) : (
+            <div className="text-center py-12">
+              <Bell className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-500 mb-2">
+                No notifications
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                You're all caught up! Check back later for new updates.
+              </p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Notification Modal */}
