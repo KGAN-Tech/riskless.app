@@ -399,6 +399,7 @@ export default function AccountMSPage() {
                 onChange={handleChange}
                 className="w-full border rounded-md p-2"
               >
+                <option value="super_admin">Super Admin</option>
                 <option value="admin">Admin</option>
               </select>
             </div>

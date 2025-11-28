@@ -29,6 +29,8 @@ type NotificationType = "unknown" | "app_update" | "promotion" | "news";
 export default function NotificationPage() {
   const [notifications, setNotifications] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [formData, setFormData] = useState({
@@ -59,6 +61,7 @@ export default function NotificationPage() {
 
   // Save new or update existing
   const handleSubmit = async () => {
+    setSaving(true);
     try {
       const data = {
         title: formData.title,
@@ -88,6 +91,8 @@ export default function NotificationPage() {
       loadNotifications();
     } catch (err) {
       console.error("Error saving notification:", err);
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -105,8 +110,16 @@ export default function NotificationPage() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this notification?")) return;
-    await notificationService.remove(id, {});
-    loadNotifications();
+
+    setDeletingId(id);
+    try {
+      await notificationService.remove(id, {});
+      loadNotifications();
+    } catch (err) {
+      console.error("Error deleting notification:", err);
+    } finally {
+      setDeletingId(null);
+    }
   };
 
   return (
@@ -123,46 +136,51 @@ export default function NotificationPage() {
           onChange={(e) => setQuery(e.target.value)}
         />
         <Button onClick={loadNotifications} disabled={loading}>
-          Search
+          {loading ? "Searching..." : "Search"}
         </Button>
       </div>
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {notifications.length === 0 ? (
-          <p className="text-gray-500">No notifications found.</p>
-        ) : (
-          notifications.map((n) => (
-            <Card key={n.id} className="shadow-md">
-              <CardHeader>
-                <CardTitle>{n.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-2">
-                  {n.description || "No description"}
-                </p>
-                <p className="text-xs text-gray-500">
-                  <b>Type:</b> {n.type} <br />
-                  <b>Status:</b> {n.status || "N/A"} <br />
-                  <b>Tags:</b> {n.tags?.join(", ") || "None"}
-                </p>
+      {loading ? (
+        <div className="flex justify-center items-center py-8">
+          <p className="text-gray-500">Loading notifications...</p>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {notifications.length === 0 ? (
+            <p className="text-gray-500">No notifications found.</p>
+          ) : (
+            notifications.map((n) => (
+              <Card key={n.id} className="shadow-md">
+                <CardHeader>
+                  <CardTitle>{n.title}</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <p className="text-sm text-gray-600 mb-2">
+                    {n.description || "No description"}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    <b>Type:</b> {n.type} <br />
+                  </p>
 
-                <div className="flex gap-2 mt-4">
-                  <Button size="sm" onClick={() => handleEdit(n)}>
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDelete(n.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
+                  <div className="flex gap-2 mt-4">
+                    <Button size="sm" onClick={() => handleEdit(n)}>
+                      Edit
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleDelete(n.id)}
+                      disabled={deletingId === n.id}
+                    >
+                      {deletingId === n.id ? "Deleting..." : "Delete"}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))
+          )}
+        </div>
+      )}
 
       {/* CREATE / EDIT DIALOG */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -192,24 +210,7 @@ export default function NotificationPage() {
                 }
               />
             </div>
-            <div>
-              <Label>Status</Label>
-              <Input
-                value={formData.status}
-                onChange={(e) =>
-                  setFormData({ ...formData, status: e.target.value })
-                }
-              />
-            </div>
-            <div>
-              <Label>Tags (comma separated)</Label>
-              <Input
-                value={formData.tags}
-                onChange={(e) =>
-                  setFormData({ ...formData, tags: e.target.value })
-                }
-              />
-            </div>
+
             <div>
               <Label>Type</Label>
               <Select
@@ -235,8 +236,8 @@ export default function NotificationPage() {
             <Button variant="outline" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button onClick={handleSubmit}>
-              {formData.id ? "Update" : "Create"}
+            <Button onClick={handleSubmit} disabled={saving}>
+              {saving ? "Saving..." : formData.id ? "Update" : "Create"}
             </Button>
           </div>
         </DialogContent>

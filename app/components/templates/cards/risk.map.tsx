@@ -67,6 +67,25 @@ interface RiskMapProps {
   facilities?: Facility[];
 }
 
+// Utility function to filter out facilities with invalid coordinates
+export const filterValidFacilities = (facilities: Facility[]): Facility[] => {
+  return facilities.filter((facility) => {
+    const lat = facility.latitude;
+    const lng = facility.longitude;
+
+    return (
+      lat != null &&
+      lng != null &&
+      !isNaN(Number(lat)) &&
+      !isNaN(Number(lng)) &&
+      Number(lat) >= -90 &&
+      Number(lat) <= 90 &&
+      Number(lng) >= -180 &&
+      Number(lng) <= 180
+    );
+  });
+};
+
 // 👇 Fit map to route automatically
 function FitToRoute({ route }: { route: LatLngExpression[] }) {
   const map = useMap();
@@ -95,7 +114,6 @@ function getDistanceMeters(
   return R * c;
 }
 
-// 🎤 Text-to-speech function
 // 🎤 Enhanced Text-to-speech function with user interaction check
 const speakWarning = (warning: HighRiskRoad) => {
   if (!("speechSynthesis" in window)) {
@@ -154,6 +172,7 @@ const speakWarning = (warning: HighRiskRoad) => {
     console.error("Error in speakWarning:", error);
   }
 };
+
 // 🏥 Facility type to icon mapping
 const getFacilityIcon = (category: string, status: string) => {
   const size = [25, 25] as [number, number];
@@ -163,24 +182,16 @@ const getFacilityIcon = (category: string, status: string) => {
 
   switch (category) {
     case "emergency_facility":
+    case "police_station":
+
+    case "fire_station":
+    case "evacuation_center":
     case "hospital":
+    case "clinic":
+    case "pharmacy":
       iconUrl = `https://cdn-icons-png.flaticon.com/512/9195/9195850.png`; // Hospital icon
       break;
-    case "police_station":
-      iconUrl = `https://cdn-icons-png.flaticon.com/512/4320/4320648.png`; // Police icon
-      break;
-    case "fire_station":
-      iconUrl = `https://cdn-icons-png.flaticon.com/512/1060/1060984.png`; // Fire station icon
-      break;
-    case "evacuation_center":
-      iconUrl = `https://cdn-icons-png.flaticon.com/512/3096/3096970.png`; // Shelter icon
-      break;
-    case "clinic":
-      iconUrl = `https://cdn-icons-png.flaticon.com/512/2966/2966455.png`; // Clinic icon
-      break;
-    case "pharmacy":
-      iconUrl = `https://cdn-icons-png.flaticon.com/512/3142/3142945.png`; // Pharmacy icon
-      break;
+
     default:
       iconUrl = `https://cdn-icons-png.flaticon.com/512/684/684908.png`; // Default map pin
   }
@@ -197,7 +208,7 @@ export function RiskMap({
   currentLocation,
   destination,
   highRiskRoads,
-  facilities,
+  facilities = [],
   onChooseAction,
 }: RiskMapProps) {
   const [isTravelling, setIsTravelling] = useState(false);
@@ -224,16 +235,28 @@ export function RiskMap({
     iconAnchor: [15, 30],
   });
 
-  console.log("Facilities loaded in RiskMap:", facilities);
+  // Filter facilities to only include valid ones
+  const validFacilities = filterValidFacilities(facilities);
+
+  console.log("Original facilities count:", facilities?.length);
+  console.log("Valid facilities count:", validFacilities.length);
+  if (facilities?.length !== validFacilities.length) {
+    console.warn(
+      "Some facilities were filtered out due to invalid coordinates"
+    );
+  }
 
   // ✅ Fix default Leaflet marker icons
-  delete (L.Icon.Default.prototype as any)._getIconUrl;
-  L.Icon.Default.mergeOptions({
-    iconRetinaUrl:
-      "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-    iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-    shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-  });
+  useEffect(() => {
+    delete (L.Icon.Default.prototype as any)._getIconUrl;
+    L.Icon.Default.mergeOptions({
+      iconRetinaUrl:
+        "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
+      iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
+      shadowUrl:
+        "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
+    });
+  }, []);
 
   const currentLocationIcon = L.divIcon({
     className: "current-location-icon",
@@ -268,6 +291,12 @@ export function RiskMap({
       window.speechSynthesis.onvoiceschanged = loadVoices;
       loadVoices(); // Initial load
     }
+
+    return () => {
+      if ("speechSynthesis" in window) {
+        window.speechSynthesis.onvoiceschanged = null;
+      }
+    };
   }, []);
 
   // ✅ Fetch route from OSRM
@@ -412,6 +441,7 @@ export function RiskMap({
       if (interval) clearInterval(interval);
     };
   }, [liveLocation, highRiskRoads, cooldowns, isSpeechSupported, isTravelling]);
+
   // ✅ Handle choice modal actions
   const handleChoiceAction = (action: string, coords: [number, number]) => {
     setShowChoiceModal(false);
@@ -428,21 +458,55 @@ export function RiskMap({
     <div className="space-y-3 relative">
       <Card
         className={`${
-          isFullScreen ? "h-[80vh] rounded-2xl" : "h-64 rounded-3xl"
+          isFullScreen ? "h-[80vh] rounded-2xl" : "h-[80vh] rounded-2xl"
         } calm-shadow border-border overflow-hidden relative transition-all duration-300`}
       >
+        <div className="absolute bottom-3 right-3 z-[1000] flex gap-2">
+          {destination && (
+            <div className="flex justify-center gap-3">
+              {!isTravelling ? (
+                <Button
+                  onClick={() => handleStartTravel()}
+                  className="bg-green-600 hover:bg-green-700 rounded-2xl"
+                >
+                  Start Travel
+                </Button>
+              ) : (
+                <Button
+                  onClick={handleStopTravel}
+                  className="bg-red-600 hover:bg-red-700 rounded-2xl"
+                >
+                  Stop Travel
+                </Button>
+              )}
+            </div>
+          )}
+        </div>
         <div className="absolute top-3 right-3 z-[1000] flex gap-2">
-          <Button
-            onClick={toggleFullScreen}
-            size="sm"
-            className="bg-white/90 hover:bg-white border text-green-700 border-gray-300 rounded-lg shadow-md"
-          >
-            {isFullScreen ? (
-              <X className="w-4 h-4" />
-            ) : (
-              <Compass className="w-4 h-4" />
-            )}
-          </Button>
+          {/* 🏥 Facilities Legend - Only show when not in full screen */}
+          {validFacilities.length > 0 && (
+            <Card className="p-3 rounded-2xl calm-shadow border-border">
+              <h3 className="text-sm font-semibold ">Legend</h3>
+              <div className="grid grid-cols-2 gap-2 text-xs -mt-4">
+                <div className="flex items-center gap-1">
+                  <img
+                    src="https://cdn-icons-png.flaticon.com/512/9195/9195850.png"
+                    className="w-4 h-4"
+                    alt="Emergency Facility"
+                  />
+                  <span>Emergency Facility</span>
+                </div>
+                <div className="flex items-center gap-1">
+                  <img
+                    src="https://uxwing.com/wp-content/themes/uxwing/download/signs-and-symbols/risk-icon.png"
+                    className="w-4 h-4"
+                    alt="High Risk Road"
+                  />
+                  <span>High Risk Road</span>
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
 
         <MapContainer
@@ -506,8 +570,8 @@ export function RiskMap({
                 <br />
                 {road.description}
                 <br />
-                Coordinates: {road.latitude.toFixed(5)},{" "}
-                {road.longitude.toFixed(5)}
+                Coordinates: {road.latitude?.toFixed(5)},{" "}
+                {road.longitude?.toFixed(5) || "N/A"}
                 <br />
                 Type: {road.type === "other" ? road.otherType : road.type}
                 <br />
@@ -516,165 +580,78 @@ export function RiskMap({
             </Marker>
           ))}
 
-          {/* 🏥 Facilities Markers */}
-          {facilities && facilities.length > 0 ? (
-            facilities.map((facility) => {
-              try {
-                // Validate coordinates
-                if (!facility.latitude || !facility.longitude) {
-                  console.warn(
-                    `Facility ${facility.id} missing coordinates:`,
-                    facility
-                  );
-                  return null;
-                }
+          {/* 🏥 Facilities Markers - Only render valid facilities */}
+          {validFacilities.length > 0 ? (
+            validFacilities.map((facility) => {
+              const lat = Number(facility.latitude);
+              const lng = Number(facility.longitude);
+              const icon = getFacilityIcon(facility.category, facility.status);
 
-                if (isNaN(facility.latitude) || isNaN(facility.longitude)) {
-                  console.warn(
-                    `Facility ${facility.id} has invalid coordinates:`,
-                    facility
-                  );
-                  return null;
-                }
-
-                const icon = getFacilityIcon(
-                  facility.category,
-                  facility.status
-                );
-
-                return (
-                  <Marker
-                    key={facility.id}
-                    position={[facility.latitude, facility.longitude]}
-                    icon={icon}
-                  >
-                    <Popup>
-                      <div className="min-w-[200px]">
-                        <strong className="text-sm">{facility.name}</strong>
-                        <div className="mt-1 text-xs text-gray-600">
-                          <div>
-                            <strong>Type:</strong> {facility.type}
-                          </div>
-                          <div>
-                            <strong>Category:</strong> {facility.category}
-                          </div>
-                          <div>
-                            <strong>Status:</strong>
-                            <span
-                              className={`ml-1 ${
-                                facility.status === "open"
-                                  ? "text-green-600"
-                                  : facility.status === "closed"
-                                  ? "text-red-600"
-                                  : "text-gray-600"
-                              }`}
-                            >
-                              {facility.status}
-                            </span>
-                          </div>
+              return (
+                <Marker key={facility.id} position={[lat, lng]} icon={icon}>
+                  <Popup>
+                    <div className="min-w-[200px]">
+                      <strong className="text-sm">{facility.name}</strong>
+                      <div className="mt-1 text-xs text-gray-600">
+                        <div>
+                          <strong>Type:</strong> {facility.type}
                         </div>
-                        {facility.location && (
-                          <div className="mt-2 text-xs">
-                            <strong>Location:</strong> {facility.location}
-                          </div>
-                        )}
-                        {facility.contacts && facility.contacts.length > 0 && (
-                          <div className="mt-2">
-                            <strong className="text-xs">Contacts:</strong>
-                            {facility.contacts.map(
-                              (contact, index) =>
-                                contact.value && (
-                                  <div key={index} className="text-xs">
-                                    {contact.type}: {contact.value}
-                                  </div>
-                                )
-                            )}
-                          </div>
-                        )}
+                        <div>
+                          <strong>Category:</strong> {facility.category}
+                        </div>
+                        <div>
+                          <strong>Status:</strong>
+                          <span
+                            className={`ml-1 ${
+                              facility.status === "open"
+                                ? "text-green-600"
+                                : facility.status === "closed"
+                                ? "text-red-600"
+                                : "text-gray-600"
+                            }`}
+                          >
+                            {facility.status}
+                          </span>
+                        </div>
                       </div>
-                    </Popup>
-                  </Marker>
-                );
-              } catch (error) {
-                console.error(
-                  `Error rendering facility ${facility.id}:`,
-                  error,
-                  facility
-                );
-                return null;
-              }
+                      {facility.location && (
+                        <div className="mt-2 text-xs">
+                          <strong>Location:</strong> {facility.location}
+                        </div>
+                      )}
+                      {facility.contacts && facility.contacts.length > 0 && (
+                        <div className="mt-2">
+                          <strong className="text-xs">Contacts:</strong>
+                          {facility.contacts.map(
+                            (contact, index) =>
+                              contact.value && (
+                                <div key={index} className="text-xs">
+                                  {contact.type}: {contact.value}
+                                </div>
+                              )
+                          )}
+                        </div>
+                      )}
+                      {/* Show coordinates in popup for debugging */}
+                      <div className="mt-1 text-xs text-gray-400">
+                        Coordinates: {lat.toFixed(5)}, {lng.toFixed(5)}
+                      </div>
+                    </div>
+                  </Popup>
+                </Marker>
+              );
             })
-          ) : (
+          ) : facilities && facilities.length > 0 ? (
             <div className="leaflet-top leaflet-left">
               <div className="leaflet-control leaflet-bar p-2 bg-white text-xs">
-                No facilities to display
+                No facilities with valid coordinates to display
               </div>
             </div>
-          )}
+          ) : null}
         </MapContainer>
       </Card>
 
-      {/* 🏥 Facilities Legend - Only show when not in full screen */}
-      {!isFullScreen && facilities && facilities.length > 0 && (
-        <Card className="p-3 rounded-2xl calm-shadow border-border">
-          <h3 className="text-sm font-semibold mb-2">Facilities Legend</h3>
-          <div className="grid grid-cols-2 gap-2 text-xs">
-            <div className="flex items-center gap-1">
-              <img
-                src="https://cdn-icons-png.flaticon.com/512/9195/9195850.png"
-                className="w-4 h-4"
-                alt="Emergency Facility"
-              />
-              <span>Emergency Facility</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <img
-                src="https://cdn-icons-png.flaticon.com/512/4320/4320648.png"
-                className="w-4 h-4"
-                alt="Police Station"
-              />
-              <span>Police Station</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <img
-                src="https://cdn-icons-png.flaticon.com/512/1060/1060984.png"
-                className="w-4 h-4"
-                alt="Fire Station"
-              />
-              <span>Fire Station</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <img
-                src="https://cdn-icons-png.flaticon.com/512/3096/3096970.png"
-                className="w-4 h-4"
-                alt="Evacuation Center"
-              />
-              <span>Evacuation Center</span>
-            </div>
-          </div>
-        </Card>
-      )}
-
       {/* Travel Controls - Only show when not in full screen */}
-      {!isFullScreen && (
-        <div className="flex justify-center gap-3">
-          {!isTravelling ? (
-            <Button
-              onClick={() => handleStartTravel()}
-              className="bg-green-600 hover:bg-green-700 rounded-2xl"
-            >
-              Start Travel
-            </Button>
-          ) : (
-            <Button
-              onClick={handleStopTravel}
-              className="bg-red-600 hover:bg-red-700 rounded-2xl"
-            >
-              Stop Travel
-            </Button>
-          )}
-        </div>
-      )}
 
       {/* 🚨 Warning Modal */}
       {warning && (
@@ -721,7 +698,8 @@ export function RiskMap({
                   handleChoiceAction("startTravel", pinnedLocation)
                 }
               >
-                <Navigation className="w-4 h-4 mr-2" /> Start Travel
+                <Navigation className="w-4 h-4 mr-2" /> Choose this as
+                Destination
               </Button>
               <Button
                 className="bg-amber-500 hover:bg-amber-600 rounded-xl"

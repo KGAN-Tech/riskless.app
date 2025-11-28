@@ -179,6 +179,7 @@ const TYPE_CONFIG = {
 export default function RoadMSPage() {
   const [roads, setRoads] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [open, setOpen] = useState(false);
   const [selected, setSelected] = useState<any | null>(null);
 
@@ -197,12 +198,26 @@ export default function RoadMSPage() {
   });
 
   // -----------------------------------------------------
+  // 🔹 Check if all required fields are filled
+  // -----------------------------------------------------
+  const isFormComplete = () => {
+    const requiredFields = [
+      form.title.trim(),
+      form.location.trim(),
+      form.longitude.trim(),
+      form.latitude.trim(),
+    ];
+
+    return requiredFields.every((field) => field !== "");
+  };
+
+  // -----------------------------------------------------
   // 🔹 Fetch All Roads
   // -----------------------------------------------------
   const fetchRoads = async () => {
     setLoading(true);
     try {
-      const res = await roadService.getAll();
+      const res = await roadService.getAll({ query: "", limit: 999 });
       const list = Array.isArray(res?.data) ? res.data : [];
       setRoads(list);
     } catch (err) {
@@ -395,6 +410,16 @@ export default function RoadMSPage() {
   const handleSubmit = async (e: any) => {
     e.preventDefault();
 
+    // Don't submit if form is not complete
+    if (!isFormComplete()) {
+      alert(
+        "Please fill all required fields (Title, Location, Longitude, and Latitude)"
+      );
+      return;
+    }
+
+    setSubmitting(true);
+
     const payload = {
       title: form.title,
       description: form.description,
@@ -428,6 +453,8 @@ export default function RoadMSPage() {
     } catch (err) {
       console.error("Error saving road:", err);
       alert("Error saving road");
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -679,24 +706,6 @@ export default function RoadMSPage() {
                 />
               </div>
 
-              {/* <div>
-                <Label
-                  htmlFor="description"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Description *
-                </Label>
-                <Input
-                  id="description"
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  required
-                  className="mt-1"
-                  placeholder="Enter road description"
-                />
-              </div> */}
-
               {/* Road Information Section */}
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
@@ -707,13 +716,14 @@ export default function RoadMSPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="location">Road Location</Label>
+                    <Label htmlFor="location">Road Location *</Label>
                     <Input
                       id="location"
                       name="location"
                       value={form.location}
                       onChange={handleChange}
                       placeholder="General location"
+                      required
                     />
                   </div>
                 </div>
@@ -729,7 +739,7 @@ export default function RoadMSPage() {
                   <span>Go to Map</span>
                 </button>
                 <div className="flex-1">
-                  <Label htmlFor="mapLink">Map Link</Label>
+                  <Label htmlFor="mapLink">Map Link *</Label>
                   <Input
                     id="mapLink"
                     name="mapLink"
@@ -747,7 +757,7 @@ export default function RoadMSPage() {
 
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div>
-                  <Label htmlFor="longitude">Longitude</Label>
+                  <Label htmlFor="longitude">Longitude *</Label>
                   <Input
                     id="longitude"
                     type="number"
@@ -756,6 +766,7 @@ export default function RoadMSPage() {
                     value={form.longitude}
                     onChange={handleChange}
                     placeholder="0.000000"
+                    required
                   />
                   {form.longitude && (
                     <p className="text-xs text-green-600">
@@ -764,7 +775,7 @@ export default function RoadMSPage() {
                   )}
                 </div>
                 <div>
-                  <Label htmlFor="latitude">Latitude</Label>
+                  <Label htmlFor="latitude">Latitude *</Label>
                   <Input
                     id="latitude"
                     type="number"
@@ -773,6 +784,7 @@ export default function RoadMSPage() {
                     value={form.latitude}
                     onChange={handleChange}
                     placeholder="0.000000"
+                    required
                   />
                   {form.latitude && (
                     <p className="text-xs text-green-600">
@@ -806,7 +818,7 @@ export default function RoadMSPage() {
                     htmlFor="status"
                     className="text-sm font-medium text-gray-700"
                   >
-                    Status
+                    Status *
                   </Label>
                   <select
                     id="status"
@@ -829,7 +841,7 @@ export default function RoadMSPage() {
                     htmlFor="type"
                     className="text-sm font-medium text-gray-700"
                   >
-                    Type
+                    Type *
                   </Label>
                   <select
                     id="type"
@@ -866,26 +878,6 @@ export default function RoadMSPage() {
                   />
                 </div>
               )}
-
-              <div>
-                <Label
-                  htmlFor="tags"
-                  className="text-sm font-medium text-gray-700"
-                >
-                  Tags
-                </Label>
-                <Input
-                  id="tags"
-                  name="tags"
-                  value={form.tags}
-                  onChange={handleChange}
-                  className="mt-1"
-                  placeholder="e.g., flood, pothole, traffic (comma separated)"
-                />
-                <p className="text-xs text-gray-500 mt-1">
-                  Separate multiple tags with commas
-                </p>
-              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
@@ -894,16 +886,38 @@ export default function RoadMSPage() {
                 variant="outline"
                 onClick={() => setOpen(false)}
                 className="px-6"
+                disabled={submitting}
               >
                 Cancel
               </Button>
               <Button
                 type="submit"
                 className="px-6 bg-blue-600 hover:bg-blue-700"
+                disabled={submitting || !isFormComplete()}
               >
-                {selected ? "Update Road" : "Create Road"}
+                {submitting ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {selected ? "Updating..." : "Creating..."}
+                  </>
+                ) : (
+                  <>{selected ? "Update Road" : "Create Road"}</>
+                )}
               </Button>
             </div>
+
+            {/* Form completion status indicator */}
+            {!isFormComplete() && (
+              <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                <div className="flex items-center gap-2 text-yellow-800 text-sm">
+                  <AlertTriangle className="w-4 h-4" />
+                  <span>
+                    Please fill all required fields (marked with *) to create
+                    the road.
+                  </span>
+                </div>
+              </div>
+            )}
           </form>
         </DialogContent>
       </Dialog>

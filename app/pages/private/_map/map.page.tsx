@@ -5,6 +5,7 @@ import { DestinationSearch } from "~/app/components/templates/cards/destination.
 import {
   RiskMap,
   type Facility,
+  filterValidFacilities,
 } from "~/app/components/templates/cards/risk.map";
 import { useRoad } from "~/app/hooks/use.road";
 import {
@@ -144,6 +145,8 @@ export function MapPage() {
   const [currentLocation, setCurrentLocation] = useState<LatLngTuple | null>(
     null
   );
+  const [creating, setCreating] = useState(false);
+
   const [facilitiesMap, setFacilitiesMap] = useState<Facility[]>([]);
 
   const [showReportModal, setShowReportModal] = useState(false);
@@ -236,7 +239,18 @@ export function MapPage() {
     setLoading(true);
     try {
       const res = await facilityService.getAll({ limit: 1000 });
-      setFacilitiesMap(res?.data || []);
+      const facilitiesData = res?.data || [];
+      // Filter facilities to only include valid ones for the map
+      const validFacilities = filterValidFacilities(facilitiesData);
+      setFacilitiesMap(validFacilities);
+
+      if (facilitiesData.length !== validFacilities.length) {
+        console.warn(
+          `${
+            facilitiesData.length - validFacilities.length
+          } facilities were filtered out due to invalid coordinates`
+        );
+      }
     } catch (err) {
       console.error("Error fetching facilities for map:", err);
     }
@@ -368,11 +382,21 @@ export function MapPage() {
     return [...commonTypes, ...otherTypes];
   };
 
+  const removeImage = (index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      imageFiles: prev.imageFiles.filter((_, i) => i !== index),
+    }));
+  };
+
   const handleSubmit = async () => {
+    if (creating) return; // Prevent double submit
+    setCreating(true);
+
     try {
-      // Validate required fields
       if (!formData.title || !formData.description) {
         alert("Title and description are required");
+        setCreating(false);
         return;
       }
 
@@ -398,13 +422,11 @@ export function MapPage() {
       data.append("createdById", getUserFromLocalStorage()?.user?.id || "");
       data.append("tags", JSON.stringify(tags));
 
-      // Optional fields
       if (formData.otherType) data.append("otherType", formData.otherType);
       if (formData.reportToId) data.append("reportToId", formData.reportToId);
       if (formData.roadId) data.append("roadId", formData.roadId);
       if (formData.facilityId) data.append("facilityId", formData.facilityId);
 
-      // Road creation fields
       if (formData.roadTitle) data.append("roadTitle", formData.roadTitle);
       if (formData.roadDescription)
         data.append("roadDescription", formData.roadDescription);
@@ -422,14 +444,11 @@ export function MapPage() {
       if (formData.roadMapLink)
         data.append("roadMapLink", formData.roadMapLink);
 
-      // Append files
       formData.imageFiles.forEach((file) => data.append("files", file));
 
-      // Create report
       const reportResponse = await reportService.create(data);
       const reportId = reportResponse.data?.id;
 
-      // Create activity
       if (reportId) {
         await activityService.create({
           title: `New Report: ${formData.title}`,
@@ -447,8 +466,10 @@ export function MapPage() {
       resetForm();
     } catch (err) {
       console.error("Error saving report:", err);
-      alert("Error saving report. Please check the console for details.");
+      alert("Error saving report. Check console.");
     }
+
+    setCreating(false);
   };
 
   const resetForm = () => {
@@ -478,12 +499,31 @@ export function MapPage() {
     setFacilities([]);
   };
 
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowSuggestions(false);
+    };
+
+    document.addEventListener("click", handleClickOutside);
+    return () => {
+      document.removeEventListener("click", handleClickOutside);
+    };
+  }, []);
+
   return (
     <div className="h-full overflow-y-auto pb-20">
-      <div className="p-4 space-y-4 h-full">
+      <div className="p-4 space-y-2 h-full">
         <h2 className="text-foreground flex items-center gap-2">
           <Compass className="w-5 h-5 text-primary" /> Navigate Safely
         </h2>
+        <p className="text-muted-foreground text-sm">
+          Note:{" "}
+          <span className="text-red-500">
+            Double click on the map to add a new report and to choose
+            destination{" "}
+          </span>
+        </p>
 
         {/* <DestinationSearch
           destination={destination}
@@ -531,33 +571,9 @@ export function MapPage() {
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="">
                 <div>
-                  <Label htmlFor="status">Status</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) =>
-                      setFormData({
-                        ...formData,
-                        status: value as ReportStatus,
-                      })
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Object.values(ReportStatus).map((status) => (
-                        <SelectItem key={status} value={status}>
-                          {status.replace("_", " ")}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div>
-                  <Label htmlFor="type">Type</Label>
+                  <Label htmlFor="type">Type *</Label>
                   <Select
                     value={formData.type}
                     onValueChange={(value) =>
@@ -607,9 +623,9 @@ export function MapPage() {
               )}
 
               <div className="relative">
-                <Label>Facility</Label>
+                <Label>Organization *</Label>
                 <Input
-                  placeholder="Search facility..."
+                  placeholder="Search organization..."
                   value={facilitySearch}
                   onChange={(e) => {
                     setFacilitySearch(e.target.value);
@@ -634,7 +650,7 @@ export function MapPage() {
                 )}
               </div>
 
-              <div>
+              {/* <div>
                 <Label htmlFor="tags">Tags (comma separated)</Label>
                 <Input
                   id="tags"
@@ -644,7 +660,7 @@ export function MapPage() {
                   }
                   placeholder="tag1, tag2, tag3"
                 />
-              </div>
+              </div> */}
 
               {/* Road Information Section */}
               <div className="border-t pt-4">
@@ -652,7 +668,7 @@ export function MapPage() {
 
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <Label htmlFor="roadTitle">Location Title</Label>
+                    <Label htmlFor="roadTitle">Location Title *</Label>
                     <Input
                       id="roadTitle"
                       value={formData.roadTitle || ""}
@@ -663,7 +679,7 @@ export function MapPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="roadLocation">Location Address</Label>
+                    <Label htmlFor="roadLocation">Location Address *</Label>
                     <Input
                       id="roadLocation"
                       value={formData.roadLocation || ""}
@@ -687,7 +703,7 @@ export function MapPage() {
                     <span>View on Map</span>
                   </button>
                   <div className="flex-1">
-                    <Label htmlFor="roadMapLink">Map Link</Label>
+                    <Label htmlFor="roadMapLink">Map Link *</Label>
                     <Input
                       id="roadMapLink"
                       type="text"
@@ -700,7 +716,7 @@ export function MapPage() {
 
                 <div className="grid grid-cols-2 gap-4 mt-2">
                   <div>
-                    <Label htmlFor="roadLongitude">Longitude</Label>
+                    <Label htmlFor="roadLongitude">Longitude *</Label>
                     <Input
                       id="roadLongitude"
                       type="number"
@@ -718,7 +734,7 @@ export function MapPage() {
                     />
                   </div>
                   <div>
-                    <Label htmlFor="roadLatitude">Latitude</Label>
+                    <Label htmlFor="roadLatitude">Latitude *</Label>
                     <Input
                       id="roadLatitude"
                       type="number"
@@ -739,7 +755,7 @@ export function MapPage() {
               </div>
 
               <div>
-                <Label htmlFor="images">Upload Images</Label>
+                <Label htmlFor="images">Upload Images *</Label>
                 <Input
                   id="images"
                   type="file"
@@ -748,14 +764,23 @@ export function MapPage() {
                   onChange={handleFileChange}
                 />
                 {formData.imageFiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
+                  <div className="flex flex-wrap gap-3 mt-2">
                     {formData.imageFiles.map((file, i) => (
-                      <img
-                        key={i}
-                        src={URL.createObjectURL(file)}
-                        alt="preview"
-                        className="w-20 h-20 object-cover rounded-md border"
-                      />
+                      <div key={i} className="relative">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt="preview"
+                          className="w-20 h-20 object-cover rounded-md border"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => removeImage(i)}
+                          className="absolute -top-2 -right-2 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow"
+                        >
+                          ✕
+                        </button>
+                      </div>
                     ))}
                   </div>
                 )}
@@ -771,9 +796,26 @@ export function MapPage() {
               </Button>
               <Button
                 onClick={handleSubmit}
-                disabled={!formData.title || !formData.description}
+                disabled={
+                  creating ||
+                  !formData.title ||
+                  !formData.description ||
+                  !formData.roadTitle ||
+                  !formData.roadLocation ||
+                  !formData.roadLongitude ||
+                  !formData.roadLatitude ||
+                  !formData.roadMapLink ||
+                  !formData.imageFiles
+                }
               >
-                Create Report
+                {creating ? (
+                  <span className="flex items-center gap-2">
+                    <span className="loader spinner-border w-4 h-4 animate-spin border-2 border-t-transparent rounded-full"></span>
+                    Creating...
+                  </span>
+                ) : (
+                  "Create Report"
+                )}
               </Button>
             </div>
           </DialogContent>

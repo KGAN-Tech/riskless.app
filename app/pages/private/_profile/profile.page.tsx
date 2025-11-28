@@ -8,12 +8,8 @@ import {
   User,
   Mail,
   Phone,
-  MapPin,
-  Lock,
-  Bell,
   Shield,
   LogOut,
-  ChevronRight,
   Heart,
   Camera,
   Eye,
@@ -24,33 +20,57 @@ import { getUserFromLocalStorage } from "~/app/utils/auth.helper";
 
 export function ProfilePage() {
   const [user, setUser] = useState<any>(null);
-  const [originalUser, setOriginalUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
-  // Password states
+  const [formData, setFormData] = useState<any>({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    extensionName: "",
+    userName: "",
+    email: "",
+    phone: "",
+  });
+
+  // Track initial form data to compare against
+  const [initialFormData, setInitialFormData] = useState<any>({
+    firstName: "",
+    middleName: "",
+    lastName: "",
+    extensionName: "",
+    userName: "",
+    email: "",
+    phone: "",
+  });
+
+  const [hasChanges, setHasChanges] = useState(false);
+
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
   const [passwordData, setPasswordData] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
+
   const [changingPassword, setChangingPassword] = useState(false);
 
-  // Function to get the latest image based on captureDate
+  const [activeTab, setActiveTab] = useState<
+    "personal" | "account" | "security"
+  >("personal");
+
   const getLatestImage = (images: any[]) => {
     if (!images || images.length === 0) return null;
-
-    // Sort images by captureDate in descending order (newest first)
-    const sortedImages = [...images].sort(
+    const sorted = [...images].sort(
       (a, b) =>
         new Date(b.captureDate).getTime() - new Date(a.captureDate).getTime()
     );
-
-    return sortedImages[0]; // Return the latest image
+    return sorted[0];
   };
 
   const fetchUser = async () => {
@@ -59,18 +79,33 @@ export function ProfilePage() {
       if (!authUser?.user?.id) return;
 
       const res = await userService.getById(authUser.user.id);
-      setUser(res.data);
-      setOriginalUser(JSON.parse(JSON.stringify(res.data)));
 
-      // Set image preview using the latest image
+      setUser(res.data);
+
+      const email =
+        res.data.person?.contacts?.find((c: any) => c.type === "email")
+          ?.value || "";
+      const phone =
+        res.data.person?.contacts?.find((c: any) => c.type === "mobile_number")
+          ?.value || "";
+
+      const newFormData = {
+        firstName: res.data.person?.firstName || "",
+        middleName: res.data.person?.middleName || "",
+        lastName: res.data.person?.lastName || "",
+        extensionName: res.data.person?.extensionName || "",
+        userName: res.data.userName || "",
+        email,
+        phone,
+      };
+
+      setFormData(newFormData);
+      setInitialFormData(newFormData); // Set initial data for comparison
+
       if (res.data.person?.images?.length > 0) {
-        const latestImage = getLatestImage(res.data.person.images);
-        if (latestImage?.url) {
-          setImagePreview(latestImage.url);
-        }
+        const latest = getLatestImage(res.data.person.images);
+        if (latest?.url) setImagePreview(latest.url);
       }
-    } catch (err) {
-      console.error("Failed to fetch user", err);
     } finally {
       setLoading(false);
     }
@@ -80,85 +115,98 @@ export function ProfilePage() {
     fetchUser();
   }, []);
 
+  // Check for changes whenever formData or selectedImage changes
+  useEffect(() => {
+    const formHasChanges =
+      formData.firstName !== initialFormData.firstName ||
+      formData.middleName !== initialFormData.middleName ||
+      formData.lastName !== initialFormData.lastName ||
+      formData.extensionName !== initialFormData.extensionName ||
+      formData.userName !== initialFormData.userName ||
+      formData.email !== initialFormData.email ||
+      formData.phone !== initialFormData.phone ||
+      selectedImage !== null;
+
+    setHasChanges(formHasChanges);
+  }, [formData, initialFormData, selectedImage]);
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      setSelectedImage(file);
-      setImagePreview(URL.createObjectURL(file));
-    }
+    if (!file) return;
+    setSelectedImage(file);
+    setImagePreview(URL.createObjectURL(file));
   };
 
-  // Check if there are any changes in the profile data
-  const hasChanges = () => {
-    if (!user || !originalUser) return false;
-
-    // Check for image changes
-    if (selectedImage) return true;
-
-    // Check basic user fields
-    if (user.userName !== originalUser.userName) return true;
-    if (user.phone !== originalUser.phone) return true;
-    if (user.email !== originalUser.email) return true;
-
-    // Check person fields
-    if (user.person?.firstName !== originalUser.person?.firstName) return true;
-    if (user.person?.middleName !== originalUser.person?.middleName)
-      return true;
-    if (user.person?.lastName !== originalUser.person?.lastName) return true;
-    if (user.person?.extensionName !== originalUser.person?.extensionName)
-      return true;
-
-    return false;
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev: any) => ({ ...prev, [field]: value }));
   };
 
   const handleSave = async () => {
-    if (!user?.id || !hasChanges()) return;
+    if (!user?.id || !hasChanges) return;
 
     setSaving(true);
     try {
-      const formData = new FormData();
+      const formDataToSend = new FormData();
 
-      // Append basic user fields
-      formData.append("userName", user.userName || "");
+      formDataToSend.append("userName", formData.userName || "");
+      formDataToSend.append("firstName", formData.firstName || "");
+      formDataToSend.append("lastName", formData.lastName || "");
+      formDataToSend.append("middleName", formData.middleName || "");
+      formDataToSend.append("extensionName", formData.extensionName || "");
 
-      // Append contact number (for mobile_number contact)
-      if (user.phone) {
-        formData.append("contactNumber", user.phone);
+      const contacts = [];
+      if (formData.email) {
+        contacts.push({
+          type: "email",
+          provider: "email",
+          value: formData.email,
+        });
+      }
+      if (formData.phone) {
+        contacts.push({
+          type: "mobile_number",
+          provider: "mobile",
+          value: formData.phone,
+        });
       }
 
-      // Append person data as JSON string for nested objects
-      const personData = {
-        firstName: user.person?.firstName || "",
-        middleName: user.person?.middleName || "",
-        lastName: user.person?.lastName || "",
-        extensionName: user.person?.extensionName || "",
-        contacts: [
-          // Email contact
-          ...(user.email
-            ? [
-                {
-                  type: "email",
-                  provider: "email",
-                  value: user.email,
-                },
-              ]
-            : []),
-        ].filter((contact) => contact.type !== "mobile_number"),
+      formDataToSend.append("contacts", JSON.stringify(contacts));
+
+      if (selectedImage) {
+        formDataToSend.append("files", selectedImage);
+      }
+
+      const response = await userService.update(user.id, formDataToSend);
+
+      const updatedUser = response.user || response.data?.user || response.data;
+
+      setUser(updatedUser);
+
+      // Update initial form data to reflect the saved state
+      const email =
+        updatedUser.person?.contacts?.find((c: any) => c.type === "email")
+          ?.value || "";
+      const phone =
+        updatedUser.person?.contacts?.find(
+          (c: any) => c.type === "mobile_number"
+        )?.value || "";
+
+      const newInitialFormData = {
+        firstName: updatedUser.person?.firstName || "",
+        middleName: updatedUser.person?.middleName || "",
+        lastName: updatedUser.person?.lastName || "",
+        extensionName: updatedUser.person?.extensionName || "",
+        userName: updatedUser.userName || "",
+        email,
+        phone,
       };
 
-      formData.append("person", JSON.stringify(personData));
+      setInitialFormData(newInitialFormData);
 
-      // Append image file if selected
-      if (selectedImage) {
-        formData.append("files", selectedImage);
-      }
+      // Refresh preview image
+      const latest = getLatestImage(updatedUser.person?.images || []);
+      setImagePreview(latest?.url || null);
 
-      // Update user with FormData
-      const updated = await userService.update(user.id, formData);
-      setUser(updated.data || updated);
-      setOriginalUser(JSON.parse(JSON.stringify(updated.data || updated)));
-
-      // Reset selected image after successful upload
       setSelectedImage(null);
 
       alert("Profile updated successfully!");
@@ -173,28 +221,24 @@ export function ProfilePage() {
   const handleChangePassword = async () => {
     if (!user?.id) return;
 
-    // Validation
     if (passwordData.newPassword !== passwordData.confirmPassword) {
-      alert("New password and confirm password don't match!");
+      alert("Passwords don't match!");
       return;
     }
 
     if (passwordData.newPassword.length < 6) {
-      alert("Password must be at least 6 characters long!");
+      alert("Password must be at least 6 characters!");
       return;
     }
 
     setChangingPassword(true);
     try {
-      const formData = new FormData();
+      const fd = new FormData();
+      fd.append("password", passwordData.newPassword);
+      fd.append("passwordType", "text");
 
-      // Add password fields according to your BE structure
-      formData.append("password", passwordData.newPassword);
-      formData.append("passwordType", "text");
+      await userService.update(user.id, fd);
 
-      const updated = await userService.update(user.id, formData);
-
-      // Reset password form
       setPasswordData({
         currentPassword: "",
         newPassword: "",
@@ -203,19 +247,157 @@ export function ProfilePage() {
 
       alert("Password changed successfully!");
     } catch (err) {
-      console.error("Failed to change password", err);
+      console.error(err);
       alert("Failed to change password");
     } finally {
       setChangingPassword(false);
     }
   };
 
-  // Extract email and phone from contacts
-  const email =
-    user?.person?.contacts?.find((c: any) => c.type === "email")?.value || "";
-  const phone =
-    user?.person?.contacts?.find((c: any) => c.type === "mobile_number")
-      ?.value || "";
+  const TabNavigation = () => (
+    <div className="flex space-x-1 bg-muted/50 p-1 rounded-2xl">
+      <button
+        onClick={() => setActiveTab("personal")}
+        className={`flex-1 py-2 px-4 rounded-2xl text-sm font-medium transition-colors ${
+          activeTab === "personal"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <User className="w-4 h-4 inline mr-2" />
+        Personal Info
+      </button>
+
+      <button
+        onClick={() => setActiveTab("account")}
+        className={`flex-1 py-2 px-4 rounded-2xl text-sm font-medium transition-colors ${
+          activeTab === "account"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <Mail className="w-4 h-4 inline mr-2" />
+        Account
+      </button>
+
+      <button
+        onClick={() => setActiveTab("security")}
+        className={`flex-1 py-2 px-4 rounded-2xl text-sm font-medium transition-colors ${
+          activeTab === "security"
+            ? "bg-background text-foreground shadow-sm"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        <Shield className="w-4 h-4 inline mr-2" />
+        Security
+      </button>
+    </div>
+  );
+
+  const FormInput = ({
+    field,
+    label,
+    type = "text",
+    placeholder = "",
+  }: any) => (
+    <div>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        type={type}
+        value={formData[field]}
+        onChange={(e) => handleInputChange(field, e.target.value)}
+        placeholder={placeholder}
+        className="border-border rounded-2xl"
+      />
+    </div>
+  );
+
+  const PersonalInfoTab = () => (
+    <Card className="p-4 rounded-2xl calm-shadow border-border space-y-4">
+      <FormInput field="firstName" label="First Name" />
+      <FormInput field="middleName" label="Middle Name" />
+      <FormInput field="lastName" label="Last Name" />
+      <FormInput field="extensionName" label="Extension Name" />
+    </Card>
+  );
+
+  const AccountTab = () => (
+    <Card className="p-4 rounded-2xl calm-shadow border-border space-y-4">
+      <FormInput field="userName" label="Username" />
+      <FormInput field="email" label="Email" type="email" />
+      <FormInput field="phone" label="Phone" />
+    </Card>
+  );
+
+  const SecurityTab = () => (
+    <Card className="p-4 rounded-2xl calm-shadow border-border space-y-4">
+      {/* Current password */}
+      <PasswordField
+        label="Current Password"
+        value={passwordData.currentPassword}
+        onChange={(v: string) =>
+          setPasswordData((prev) => ({ ...prev, currentPassword: v }))
+        }
+        visible={showPassword}
+        toggle={() => setShowPassword(!showPassword)}
+      />
+
+      {/* New password */}
+      <PasswordField
+        label="New Password"
+        value={passwordData.newPassword}
+        onChange={(v: string) =>
+          setPasswordData((prev) => ({ ...prev, newPassword: v }))
+        }
+        visible={showPassword}
+        toggle={() => setShowPassword(!showPassword)}
+      />
+
+      {/* Confirm password */}
+      <PasswordField
+        label="Confirm Password"
+        value={passwordData.confirmPassword}
+        onChange={(v: string) =>
+          setPasswordData((prev) => ({ ...prev, confirmPassword: v }))
+        }
+        visible={showConfirmPassword}
+        toggle={() => setShowConfirmPassword(!showConfirmPassword)}
+      />
+
+      <Button
+        onClick={handleChangePassword}
+        disabled={changingPassword}
+        className="w-full bg-amber-500 hover:bg-amber-600 rounded-2xl"
+      >
+        {changingPassword ? "Changing Password..." : "Change Password"}
+      </Button>
+    </Card>
+  );
+
+  const PasswordField = ({ label, value, onChange, visible, toggle }: any) => (
+    <div>
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <div className="relative">
+        <Input
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          className="border-border rounded-2xl pr-10"
+        />
+        <button
+          type="button"
+          onClick={toggle}
+          className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500"
+        >
+          {visible ? (
+            <EyeOff className="w-4 h-4" />
+          ) : (
+            <Eye className="w-4 h-4" />
+          )}
+        </button>
+      </div>
+    </div>
+  );
 
   if (loading) return <div>Loading...</div>;
   if (!user) return <div>User not found</div>;
@@ -223,7 +405,6 @@ export function ProfilePage() {
   return (
     <div className="h-full overflow-y-auto pb-20">
       <div className="p-4 space-y-4">
-        {/* Header */}
         <div>
           <h2 className="text-foreground flex items-center gap-2">
             <Heart className="w-5 h-5 text-pink-400" />
@@ -234,7 +415,7 @@ export function ProfilePage() {
           </p>
         </div>
 
-        {/* Profile Card */}
+        {/* Avatar */}
         <Card className="p-6 rounded-3xl calm-shadow border-border">
           <div className="flex flex-col items-center text-center space-y-3">
             <div className="relative">
@@ -242,15 +423,15 @@ export function ProfilePage() {
                 {imagePreview ? (
                   <img
                     src={imagePreview}
-                    alt="Profile"
                     className="w-full h-full object-cover rounded-full"
                   />
                 ) : (
                   <AvatarFallback className="bg-primary text-white text-2xl">
-                    {user.userName?.[0]?.toUpperCase() ?? "U"}
+                    {user.userName?.[0]?.toUpperCase() || "U"}
                   </AvatarFallback>
                 )}
               </Avatar>
+
               <label
                 htmlFor="avatar-upload"
                 className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full cursor-pointer hover:bg-primary/90"
@@ -265,278 +446,34 @@ export function ProfilePage() {
                 />
               </label>
             </div>
+
             <div>
               <h3 className="text-foreground">{user.userName}</h3>
               <p className="text-xs text-muted-foreground">
                 {user.status ?? "Active User"}
               </p>
-              {/* Display image info for debugging */}
-              {/* {user.person?.images?.length > 0 && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  {user.person.images.length} image(s) • Latest:{" "}
-                  {new Date(
-                    getLatestImage(user.person.images)?.captureDate
-                  ).toLocaleDateString()}
-                </p>
-              )} */}
             </div>
           </div>
         </Card>
 
-        {/* Personal Information */}
-        <div className="space-y-3">
-          <h3 className="text-foreground">Personal Information</h3>
+        <TabNavigation />
 
-          <Card className="p-4 rounded-2xl calm-shadow border-border">
-            <div className="space-y-4">
-              {/* Username */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Username
-                </Label>
-                <Input
-                  value={user.userName || ""}
-                  onChange={(e) =>
-                    setUser((prev: any) => ({
-                      ...prev,
-                      userName: e.target.value,
-                    }))
-                  }
-                  className="border-border rounded-2xl"
-                />
-              </div>
+        {activeTab === "personal" && <PersonalInfoTab />}
+        {activeTab === "account" && <AccountTab />}
+        {activeTab === "security" && <SecurityTab />}
 
-              {/* First Name */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  First Name
-                </Label>
-                <Input
-                  value={user.person?.firstName || ""}
-                  onChange={(e) =>
-                    setUser((prev: any) => ({
-                      ...prev,
-                      person: { ...prev.person, firstName: e.target.value },
-                    }))
-                  }
-                  className="border-border rounded-2xl"
-                />
-              </div>
+        {/* Save button */}
+        {hasChanges && activeTab !== "security" && (
+          <Button
+            onClick={handleSave}
+            disabled={saving}
+            className="w-full bg-primary hover:bg-primary/90 rounded-2xl"
+          >
+            {saving ? "Saving..." : "Save Changes"}
+          </Button>
+        )}
 
-              {/* Middle Name */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Middle Name
-                </Label>
-                <Input
-                  value={user.person?.middleName || ""}
-                  onChange={(e) =>
-                    setUser((prev: any) => ({
-                      ...prev,
-                      person: { ...prev.person, middleName: e.target.value },
-                    }))
-                  }
-                  className="border-border rounded-2xl"
-                />
-              </div>
-
-              {/* Last Name */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Last Name
-                </Label>
-                <Input
-                  value={user.person?.lastName || ""}
-                  onChange={(e) =>
-                    setUser((prev: any) => ({
-                      ...prev,
-                      person: { ...prev.person, lastName: e.target.value },
-                    }))
-                  }
-                  className="border-border rounded-2xl"
-                />
-              </div>
-
-              {/* Extension Name */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Extension Name
-                </Label>
-                <Input
-                  value={user.person?.extensionName || ""}
-                  onChange={(e) =>
-                    setUser((prev: any) => ({
-                      ...prev,
-                      person: { ...prev.person, extensionName: e.target.value },
-                    }))
-                  }
-                  className="border-border rounded-2xl"
-                />
-              </div>
-
-              {/* Email */}
-              <div>
-                <Label className="text-xs text-muted-foreground">Email</Label>
-                <Input
-                  value={email}
-                  type="email"
-                  onChange={(e) =>
-                    setUser((prev: any) => ({
-                      ...prev,
-                      email: e.target.value,
-                    }))
-                  }
-                  className="border-border rounded-2xl"
-                />
-              </div>
-
-              {/* Phone */}
-              <div>
-                <Label className="text-xs text-muted-foreground">Phone</Label>
-                <Input
-                  value={phone}
-                  onChange={(e) =>
-                    setUser((prev: any) => ({
-                      ...prev,
-                      phone: e.target.value,
-                    }))
-                  }
-                  className="border-border rounded-2xl"
-                />
-              </div>
-
-              {/* Only show Save Changes button if there are actual changes */}
-              {hasChanges() && (
-                <Button
-                  onClick={handleSave}
-                  disabled={saving}
-                  className="w-full bg-primary hover:bg-primary/90 rounded-2xl disabled:opacity-50"
-                >
-                  {saving ? "Saving..." : "Save Changes"}
-                </Button>
-              )}
-            </div>
-          </Card>
-        </div>
-
-        {/* Change Password Section */}
-        <div className="space-y-3">
-          <h3 className="text-foreground">Change Password</h3>
-
-          <Card className="p-4 rounded-2xl calm-shadow border-border">
-            <div className="space-y-4">
-              {/* Current Password */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Current Password
-                </Label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    value={passwordData.currentPassword}
-                    onChange={(e) =>
-                      setPasswordData((prev) => ({
-                        ...prev,
-                        currentPassword: e.target.value,
-                      }))
-                    }
-                    className="border-border rounded-2xl pr-10"
-                    placeholder="Enter current password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* New Password */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  New Password
-                </Label>
-                <div className="relative">
-                  <Input
-                    type={showPassword ? "text" : "password"}
-                    value={passwordData.newPassword}
-                    onChange={(e) =>
-                      setPasswordData((prev) => ({
-                        ...prev,
-                        newPassword: e.target.value,
-                      }))
-                    }
-                    className="border-border rounded-2xl pr-10"
-                    placeholder="Enter new password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                  >
-                    {showPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {/* Confirm Password */}
-              <div>
-                <Label className="text-xs text-muted-foreground">
-                  Confirm New Password
-                </Label>
-                <div className="relative">
-                  <Input
-                    type={showConfirmPassword ? "text" : "password"}
-                    value={passwordData.confirmPassword}
-                    onChange={(e) =>
-                      setPasswordData((prev) => ({
-                        ...prev,
-                        confirmPassword: e.target.value,
-                      }))
-                    }
-                    className="border-border rounded-2xl pr-10"
-                    placeholder="Confirm new password"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500"
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <Button
-                onClick={handleChangePassword}
-                disabled={
-                  changingPassword ||
-                  !passwordData.newPassword ||
-                  !passwordData.confirmPassword
-                }
-                className="w-full bg-amber-500 hover:bg-amber-600 rounded-2xl disabled:opacity-50"
-              >
-                {changingPassword ? "Changing Password..." : "Change Password"}
-              </Button>
-            </div>
-          </Card>
-        </div>
-
-        {/* Logout Button */}
+        {/* Logout */}
         <Button
           variant="outline"
           className="w-full border-red-300 text-red-600 hover:bg-red-50 rounded-2xl"
