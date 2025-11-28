@@ -10,7 +10,7 @@ import MetricsPage from "../pages/private/metrics/metrics.page";
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "HealthLink | Login" },
+    { title: "Riskless" },
     {
       name: "description",
       content: "Electronic Medical Records system for FTCC.",
