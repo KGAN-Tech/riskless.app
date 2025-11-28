@@ -201,14 +201,12 @@ export default function RoadMSPage() {
   // 🔹 Check if all required fields are filled
   // -----------------------------------------------------
   const isFormComplete = () => {
-    const requiredFields = [
-      form.title.trim(),
-      form.location.trim(),
-      form.longitude.trim(),
-      form.latitude.trim(),
-    ];
-
-    return requiredFields.every((field) => field !== "");
+    return (
+      form.title.trim() !== "" &&
+      form.location.trim() !== "" &&
+      form.longitude !== "" &&
+      form.latitude !== ""
+    );
   };
 
   // -----------------------------------------------------
@@ -272,8 +270,8 @@ export default function RoadMSPage() {
     setForm({
       title: road.title ?? "",
       description: road.description ?? "",
-      longitude: road.longitude ?? "",
-      latitude: road.latitude ?? "",
+      longitude: road.longitude?.toString() ?? "",
+      latitude: road.latitude?.toString() ?? "",
       isHighRisk: road.isHighRisk ?? false,
       status: road.status ?? "pending_assessment",
       type: road.type ?? "high_risk_road_candidate",
@@ -706,6 +704,23 @@ export default function RoadMSPage() {
                 />
               </div>
 
+              <div>
+                <Label
+                  htmlFor="description"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Description
+                </Label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={form.description}
+                  onChange={handleChange}
+                  className="w-full mt-1 border border-gray-300 rounded-md p-2 text-sm focus:ring-blue-500 focus:border-blue-500 min-h-[80px]"
+                  placeholder="Enter road description"
+                />
+              </div>
+
               {/* Road Information Section */}
               <div className="border-t pt-4">
                 <div className="flex justify-between items-center">
@@ -878,6 +893,26 @@ export default function RoadMSPage() {
                   />
                 </div>
               )}
+
+              <div>
+                <Label
+                  htmlFor="tags"
+                  className="text-sm font-medium text-gray-700"
+                >
+                  Tags
+                </Label>
+                <Input
+                  id="tags"
+                  name="tags"
+                  value={form.tags}
+                  onChange={handleChange}
+                  className="mt-1"
+                  placeholder="Enter tags separated by commas"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Separate multiple tags with commas
+                </p>
+              </div>
             </div>
 
             <div className="flex justify-end space-x-3 pt-4 border-t">
