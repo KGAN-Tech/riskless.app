@@ -1,11 +1,19 @@
 import type { ReactNode } from "react";
 
-// Decode JWT payload (base64)
+/* ======================================
+   JWT DECODER (Base64URL-safe)
+====================================== */
 function decodeToken(token: string) {
   try {
     const payload = token.split(".")[1];
     if (!payload) return null;
-    const decoded = atob(payload);
+
+    const base64 = payload
+      .replace(/-/g, "+")
+      .replace(/_/g, "/")
+      .padEnd(payload.length + ((4 - (payload.length % 4)) % 4), "=");
+
+    const decoded = atob(base64);
     return JSON.parse(decoded);
   } catch (err) {
     console.error("Invalid token", err);
@@ -13,58 +21,74 @@ function decodeToken(token: string) {
   }
 }
 
-// Get user and token from localStorage
-export function getUserFromLocalStorage() {
-  if (typeof window === "undefined") return null;
-  try {
-    const stored = localStorage.getItem("auth"); // adjust key if needed
-    if (!stored) return null;
-    return JSON.parse(stored);
-  } catch (err) {
-    console.error("Failed to parse user from localStorage", err);
-    return null;
-  }
-}
-
-// Check if token is valid (exists & not expired)
+/* ======================================
+   TOKEN VALIDATION
+====================================== */
 function isTokenValid(token?: string) {
   if (!token) return false;
+
   const decoded = decodeToken(token);
-  if (!decoded?.exp || typeof decoded.exp !== "number") return false;
+  if (!decoded || typeof decoded.exp !== "number") return false;
+
   const now = Math.floor(Date.now() / 1000);
   return decoded.exp > now;
 }
 
-// Helper for authentication check
+/* ======================================
+   GET USER FROM LOCAL STORAGE
+====================================== */
+export function getUserFromLocalStorage() {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const stored = localStorage.getItem("auth");
+    if (!stored) return null;
+
+    const parsed = JSON.parse(stored);
+    if (!parsed || typeof parsed !== "object") return null;
+
+    const token = parsed.accessToken || parsed.token;
+    if (!token || !isTokenValid(token)) return null;
+
+    return {
+      ...parsed,
+      token,
+    };
+  } catch (err) {
+    console.error("Failed to parse auth from localStorage:", err);
+    return null;
+  }
+}
+
+/* ======================================
+   AUTH WRAPPER
+====================================== */
 export function isAuthenticated(
   renderIfTrue: ReactNode,
   renderIfFalse: ReactNode = null
 ) {
   return function AuthWrapper() {
     const stored = getUserFromLocalStorage();
-    const valid = stored?.token && isTokenValid(stored.token);
-    return <>{valid ? renderIfTrue : renderIfFalse}</>;
+    return <>{stored ? renderIfTrue : renderIfFalse}</>;
   };
 }
 
-// Helper for role check
+/* ======================================
+   ROLE WRAPPER
+====================================== */
 export function isRole(
-  requiredRole: string[] = [],
+  requiredRole: string | string[],
   renderIfTrue: ReactNode,
-  renderIfFalse: ReactNode = null,
-  requiredUserType?: string[] | null
+  renderIfFalse: ReactNode = null
 ) {
   return function RoleWrapper() {
     const stored = getUserFromLocalStorage();
-    const valid = stored?.token && isTokenValid(stored.token);
+    if (!stored) return <>{renderIfFalse}</>;
 
-    const roleOk =
-      requiredRole.length === 0 || requiredRole.includes(stored?.user?.role);
-    const typeOk =
-      !requiredUserType ||
-      requiredUserType.length === 0 ||
-      requiredUserType.includes(stored?.user?.type);
+    const roles = Array.isArray(requiredRole) ? requiredRole : [requiredRole];
 
-    return <>{valid && roleOk && typeOk ? renderIfTrue : renderIfFalse}</>;
+    return (
+      <>{roles.includes(stored.user?.role) ? renderIfTrue : renderIfFalse}</>
+    );
   };
 }
