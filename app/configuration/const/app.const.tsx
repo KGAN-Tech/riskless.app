@@ -5,37 +5,13 @@ export const APP_HOSTING = [
     key: "local1",
     type: "local" as EnvType,
     client: "http://localhost:5173",
-    server: "http://localhost:5000/api",
+    server: "https://zero-api-aa3a0074fb47.herokuapp.com/api",
   },
   {
     key: "dev1",
     type: "development" as EnvType,
     client: "https://riskless-capstone.web.app",
     server: "https://zero-api-aa3a0074fb47.herokuapp.com/api",
-  },
-  {
-    key: "test1",
-    type: "test" as EnvType,
-    client: "https://healthlink-sandbox.web.app",
-    server: "https://healthlink-sandbox-api-8ebacbcc8646.herokuapp.com/api",
-  },
-  {
-    key: "test1",
-    type: "test" as EnvType,
-    client: "https://healthlink-test.web.app",
-    server: "https://healthlink-sandbox-api-8ebacbcc8646.herokuapp.com/api",
-  },
-  {
-    key: "prod0",
-    type: "production" as EnvType,
-    client: "https://ftcc-health-admin-prod.web.app",
-    server: "https://healthlink-api-9dbcff95d862.herokuapp.com/api",
-  },
-  {
-    key: "prod1",
-    type: "production" as EnvType,
-    client: "https://healthlink-app.ftcc.com.ph",
-    server: "https://healthlink-api-9dbcff95d862.herokuapp.com/api",
   },
 ];
 
