@@ -415,7 +415,8 @@ export function RiskMap({
         const lastAlert = cooldowns[road.id] || 0;
         const cooldownPassed = now - lastAlert >= 60_000; // 1 min
 
-        if (distance <= 100 && cooldownPassed) {
+        // Check if road is within 200 meters
+        if (distance <= 200 && cooldownPassed) {
           setWarning(road);
           setCooldowns((prev) => ({ ...prev, [road.id]: now }));
 
