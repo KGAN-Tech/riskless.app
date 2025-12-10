@@ -305,7 +305,7 @@ export default function FacilityPage() {
       <Card>
         <CardHeader className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
           <CardTitle className="text-xl md:text-2xl">
-            Facility Management
+            Agency Management
           </CardTitle>
           <Button onClick={handleCreate} className="w-full sm:w-auto">
             <Plus className="w-4 h-4 mr-2" />

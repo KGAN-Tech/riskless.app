@@ -224,7 +224,7 @@ export const MAIN_NAVIGATION: NavigationItem[] = [
     userTypes: ["admin", "organization"],
   },
   {
-    name: "Facility",
+    name: "Agency",
     href: "/facility",
     icon: Hospital,
     userTypes: ["admin"],
