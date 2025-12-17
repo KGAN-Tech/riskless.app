@@ -1,5 +1,5 @@
 import { useAuth } from "~/app/hooks/use.auth";
-import { Eye, EyeOff, Lock, Hash } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 
 export function LoginForm() {
@@ -18,15 +18,25 @@ export function LoginForm() {
 
   // active tab UI state
   const [activeMethod, setActiveMethod] = useState(passwordType);
+  const [error, setError] = useState<string | null>(null); // <-- error state
 
   const handleAuthMethodChange = (method: "text" | "mpin6char") => {
     setPasswordType(method);
     setActiveMethod(method);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    handleLogin();
+    setError(null); // reset error before login
+
+    try {
+      const success = await handleLogin();
+      if (!success) {
+        setError("Invalid identifier/email or password."); // show error
+      }
+    } catch (err) {
+      setError("Something went wrong. Please try again."); // fallback error
+    }
   };
 
   return (
@@ -38,6 +48,11 @@ export function LoginForm() {
       <p className="text-center text-muted-foreground text-sm">
         Access your personalized dashboard
       </p>
+
+      {/* Error message */}
+      {error && (
+        <div className="text-red-600 text-sm text-center mb-2">{error}</div>
+      )}
 
       {/* Identifier */}
       <div>
@@ -52,34 +67,6 @@ export function LoginForm() {
           className="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring focus:ring-primary"
         />
       </div>
-
-      {/* Auth Method Switch */}
-      {/* <div className="flex gap-2">
-        <button
-          type="button"
-          onClick={() => handleAuthMethodChange("text")}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition ${
-            activeMethod === "text"
-              ? "bg-primary text-white border-primary"
-              : "bg-card border-border"
-          }`}
-        >
-          <Lock size={16} />
-          Password
-        </button>
-        <button
-          type="button"
-          onClick={() => handleAuthMethodChange("mpin6char")}
-          className={`flex-1 flex items-center justify-center gap-2 px-4 py-2 rounded-lg border transition ${
-            activeMethod === "mpin6char"
-              ? "bg-primary text-white border-primary"
-              : "bg-card border-border"
-          }`}
-        >
-          <Hash size={16} />
-          MPIN
-        </button>
-      </div> */}
 
       {/* Password / MPIN input */}
       <div>

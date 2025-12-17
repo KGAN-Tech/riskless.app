@@ -15,30 +15,27 @@ export function useAuth() {
 
   const navigate = useNavigate();
 
-  const handleLogin = async () => {
+  const handleLogin = async (): Promise<boolean> => {
+    setIsLoading(true);
     try {
-      setIsLoading(true);
-
-      const body = {
-        identifier,
-        password,
-        passwordType,
-      };
-
+      const body = { identifier, password, passwordType };
       const res = await authService.login(body);
-      uselocalStorage.set("auth", { token: res.token, user: res.user });
 
+      uselocalStorage.set("auth", { token: res.token, user: res.user });
       toast.success("Login successful!");
 
-      // Navigate based on user role/type
+      // Navigate based on role
       if (res.user?.role === "admin" || res.user?.role === "staff") {
         navigate("/");
       } else {
-        navigate("/"); // or whatever the default user dashboard should be
+        navigate("/"); // default user dashboard
       }
-    } catch (err) {
+
+      return true; // login success
+    } catch (err: any) {
       console.error(err);
-      toast.error("Login failed!");
+      toast.error(err?.message || "Login failed!");
+      return false; // login failed
     } finally {
       setIsLoading(false);
     }

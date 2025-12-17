@@ -134,6 +134,7 @@ interface ReportForm {
   roadTags?: string;
   roadType?: string;
   roadOtherType?: string;
+  roadIsHighRisk?: boolean;
   roadMapLink?: string;
 }
 
@@ -173,6 +174,7 @@ export function MapPage() {
     roadStatus: "",
     roadTags: "",
     roadType: "",
+    roadIsHighRisk: false,
     roadOtherType: "",
     roadMapLink: "",
   });
@@ -199,9 +201,7 @@ export function MapPage() {
         roadMapLink: mapLink,
         roadLocation: `Coordinates: ${lat.toFixed(6)}, ${lng.toFixed(6)}`,
         title:
-          action === "reportIncident"
-            ? "Incident Report"
-            : "High-Risk Road Report",
+          action === "reportIncident" ? "Accident Report" : "Incident Report",
         type:
           action === "reportIncident"
             ? ReportType.minor_road_accident.value
@@ -390,7 +390,7 @@ export function MapPage() {
   };
 
   const handleSubmit = async () => {
-    if (creating) return; // Prevent double submit
+    if (creating) return;
     setCreating(true);
 
     try {
@@ -414,6 +414,49 @@ export function MapPage() {
             .filter(Boolean)
         : [];
 
+      // AI-like risk evaluation
+      const evaluateRisk = (
+        type: string,
+        description: string,
+        tags: string[]
+      ): boolean => {
+        const typeDef = ReportType[type];
+        if (!typeDef) return false;
+
+        let score = 0;
+
+        // Category-based scoring
+        if (typeDef.category.includes("emergency")) score += 5;
+        if (typeDef.category.includes("accident")) score += 4;
+        if (typeDef.category.includes("road_condition")) score += 2;
+        if (typeDef.category.includes("violation")) score += 1;
+
+        // Description-based keywords
+        const keywords = [
+          "injury",
+          "fatal",
+          "serious",
+          "danger",
+          "blocked",
+          "collapse",
+        ];
+        keywords.forEach((kw) => {
+          if (description.toLowerCase().includes(kw)) score += 3;
+        });
+
+        // Tag-based scoring
+        if (tags.includes("urgent") || tags.includes("high")) score += 2;
+
+        // Simple threshold: score >= 5 is high risk
+        return score >= 5;
+      };
+
+      const isHighRisk = evaluateRisk(
+        formData.type,
+        formData.description,
+        tags
+      );
+
       const data = new FormData();
       data.append("title", formData.title);
       data.append("description", formData.description);
@@ -421,6 +464,10 @@ export function MapPage() {
       data.append("type", formData.type);
       data.append("createdById", getUserFromLocalStorage()?.user?.id || "");
       data.append("tags", JSON.stringify(tags));
+      data.append(
+        "roadIsHighRisk",
+        (formData.roadIsHighRisk || isHighRisk).toString()
+      );
 
       if (formData.otherType) data.append("otherType", formData.otherType);
       if (formData.reportToId) data.append("reportToId", formData.reportToId);
@@ -461,7 +508,9 @@ export function MapPage() {
         });
       }
 
-      alert("Report submitted successfully!");
+      alert(
+        `Report submitted successfully! High Risk: ${isHighRisk ? "Yes" : "No"}`
+      );
       setShowReportModal(false);
       resetForm();
     } catch (err) {
@@ -517,18 +566,19 @@ export function MapPage() {
         <h2 className="text-foreground flex items-center gap-2">
           <Compass className="w-5 h-5 text-primary" /> Navigate Safely
         </h2>
-        <p className="text-muted-foreground text-sm">
+
+        <DestinationSearch
+          destination={destination}
+          setDestination={setDestination}
+          setDestinationCoords={setDestinationCoords}
+        />
+        <p className="text-muted-foreground text-xs">
           Note:{" "}
           <span className="text-red-500">
             Double click on the map to add a new report and to choose
             destination{" "}
           </span>
         </p>
-
-        {/* <DestinationSearch
-          destination={destination}
-          setDestination={setDestination}
-        /> */}
 
         <RiskMap
           currentLocation={currentLocation as LatLngTuple}

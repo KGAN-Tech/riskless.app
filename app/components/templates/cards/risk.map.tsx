@@ -67,6 +67,87 @@ interface RiskMapProps {
   facilities?: Facility[];
 }
 
+// 🧮 Distance formula
+function getDistanceMeters(
+  [lat1, lon1]: [number, number],
+  [lat2, lon2]: [number, number]
+): number {
+  const R = 6371e3;
+  const φ1 = (lat1 * Math.PI) / 180;
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
+  const a =
+    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+// ==================== HIGH RISK ROAD CHECKER ====================
+class HighRiskRoadChecker {
+  private static instance: HighRiskRoadChecker;
+  private lastReportTime: number = 0;
+  private readonly COOLDOWN_TIME = 30000; // 30 seconds in milliseconds
+  private readonly CHECK_RADIUS = 100; // 100 meters radius
+
+  private constructor() {}
+
+  static getInstance(): HighRiskRoadChecker {
+    if (!HighRiskRoadChecker.instance) {
+      HighRiskRoadChecker.instance = new HighRiskRoadChecker();
+    }
+    return HighRiskRoadChecker.instance;
+  }
+
+  // Check if there's already a high risk road in the area
+  hasExistingHighRiskRoad(
+    latitude: number,
+    longitude: number,
+    highRiskRoads: HighRiskRoad[]
+  ): HighRiskRoad | null {
+    for (const road of highRiskRoads) {
+      const distance = getDistanceMeters(
+        [latitude, longitude],
+        [road.latitude, road.longitude]
+      );
+
+      if (distance <= this.CHECK_RADIUS) {
+        return road; // Return the existing high risk road
+      }
+    }
+    return null; // No existing high risk road in the area
+  }
+
+  // Check if user can submit (time-based restriction)
+  canSubmit(): { canSubmit: boolean; secondsLeft?: number } {
+    const now = Date.now();
+    const timeSinceLastReport = now - this.lastReportTime;
+
+    if (timeSinceLastReport < this.COOLDOWN_TIME) {
+      const secondsLeft = Math.ceil(
+        (this.COOLDOWN_TIME - timeSinceLastReport) / 1000
+      );
+      return {
+        canSubmit: false,
+        secondsLeft,
+      };
+    }
+
+    return { canSubmit: true };
+  }
+
+  // Record a submission
+  recordSubmission(): void {
+    this.lastReportTime = Date.now();
+  }
+
+  // Clear submission timer (for testing/reset)
+  clearSubmissionTimer(): void {
+    this.lastReportTime = 0;
+  }
+}
+// ==================== END OF HIGH RISK ROAD CHECKER ====================
+
 // Utility function to filter out facilities with invalid coordinates
 export const filterValidFacilities = (facilities: Facility[]): Facility[] => {
   return facilities.filter((facility) => {
@@ -96,22 +177,6 @@ function FitToRoute({ route }: { route: LatLngExpression[] }) {
     }
   }, [route, map]);
   return null;
-}
-
-// 🧮 Distance formula
-function getDistanceMeters(
-  [lat1, lon1]: [number, number],
-  [lat2, lon2]: [number, number]
-): number {
-  const R = 6371e3;
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-  const a =
-    Math.sin(Δφ / 2) ** 2 + Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) ** 2;
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  return R * c;
 }
 
 // 🎤 Enhanced Text-to-speech function with user interaction check
@@ -183,7 +248,6 @@ const getFacilityIcon = (category: string, status: string) => {
   switch (category) {
     case "emergency_facility":
     case "police_station":
-
     case "fire_station":
     case "evacuation_center":
     case "hospital":
@@ -226,6 +290,11 @@ export function RiskMap({
   const [travelStartLocation, setTravelStartLocation] =
     useState<LatLngExpression | null>(null);
   const [isSpeechSupported, setIsSpeechSupported] = useState(false);
+  const [showRestrictionWarning, setShowRestrictionWarning] = useState(false);
+  const [restrictionMessage, setRestrictionMessage] = useState("");
+  const [existingHighRiskRoad, setExistingHighRiskRoad] =
+    useState<HighRiskRoad | null>(null);
+  const [showDirectRestriction, setShowDirectRestriction] = useState(false); // NEW: for immediate restriction check
 
   const mapRef = useRef<LeafletMap | null>(null);
   const highRiskIcon = L.icon({
@@ -234,6 +303,9 @@ export function RiskMap({
     iconSize: [30, 30],
     iconAnchor: [15, 30],
   });
+
+  // Get the high risk road checker
+  const roadChecker = useRef(HighRiskRoadChecker.getInstance());
 
   // Filter facilities to only include valid ones
   const validFacilities = filterValidFacilities(facilities);
@@ -346,12 +418,116 @@ export function RiskMap({
     }, 100);
   };
 
-  // ✅ Detect double-click
+  // ✅ Check if user can report at this location
+  const checkReportRestrictions = (
+    coords: [number, number]
+  ): { canReport: boolean; message?: string; existingRoad?: HighRiskRoad } => {
+    const [latitude, longitude] = coords;
+
+    // Check if there's already a high risk road in 100m radius
+    const existingRoad = roadChecker.current.hasExistingHighRiskRoad(
+      latitude,
+      longitude,
+      highRiskRoads
+    );
+
+    if (existingRoad) {
+      return {
+        canReport: false,
+        message: `⚠️ May existing high risk road na sa area na ito (within 100m radius).\n\n"${existingRoad.title}"\n${existingRoad.description}\n\nHindi pwede mag-report ng bago dito.`,
+        existingRoad,
+      };
+    }
+
+    // Check 30-second time restriction
+    const timeCheck = roadChecker.current.canSubmit();
+    if (!timeCheck.canSubmit) {
+      return {
+        canReport: false,
+        message: `⏱️ Please wait ${timeCheck.secondsLeft} seconds bago mag-report ulit.\n\n30-second cooldown para hindi ma-overwhelm ang admin.`,
+      };
+    }
+
+    return { canReport: true };
+  };
+
+  // ✅ Check restrictions when location is pinned (immediate check)
+  const checkPinnedLocationRestrictions = (coords: [number, number]) => {
+    const restriction = checkReportRestrictions(coords);
+
+    if (!restriction.canReport) {
+      // Show restriction warning immediately
+      setRestrictionMessage(
+        restriction.message || "Cannot submit report at this time"
+      );
+      setExistingHighRiskRoad(restriction.existingRoad || null);
+      setShowDirectRestriction(true);
+      setShowChoiceModal(false); // Don't show choice modal
+
+      // Auto-hide warning after 8 seconds
+      setTimeout(() => {
+        setShowDirectRestriction(false);
+      }, 8000);
+
+      return false;
+    }
+
+    return true;
+  };
+
+  // ✅ Enhanced handleChoiceAction with restrictions
+  const handleChoiceAction = (action: string, coords: [number, number]) => {
+    setShowChoiceModal(false);
+
+    // Check restrictions for report actions
+    if (action === "reportIncident" || action === "reportHighRisk") {
+      const restriction = checkReportRestrictions(coords);
+
+      if (!restriction.canReport) {
+        // Show restriction warning
+        setRestrictionMessage(
+          restriction.message || "Cannot submit report at this time"
+        );
+        setExistingHighRiskRoad(restriction.existingRoad || null);
+        setShowDirectRestriction(true);
+
+        // Auto-hide warning after 8 seconds
+        setTimeout(() => {
+          setShowDirectRestriction(false);
+        }, 8000);
+
+        return; // Stop execution if not allowed
+      }
+
+      // Record the submission if allowed
+      roadChecker.current.recordSubmission();
+
+      // Pass the action to parent component
+      onChooseAction?.(action, coords);
+      return;
+    }
+
+    if (action === "startTravel") {
+      // Set the pinned location as starting point for travel
+      handleStartTravel(coords);
+    }
+
+    onChooseAction?.(action, coords);
+  };
+
+  // ✅ Detect double-click - UPDATED
   const MapClickHandler = () => {
     useMapEvent("dblclick", (e) => {
       const coords: [number, number] = [e.latlng.lat, e.latlng.lng];
       setPinnedLocation(coords);
-      setShowChoiceModal(true);
+
+      // Check restrictions immediately when location is pinned
+      const canProceed = checkPinnedLocationRestrictions(coords);
+
+      // Only show choice modal if there are no restrictions
+      if (canProceed) {
+        setShowChoiceModal(true);
+      }
     });
     return null;
   };
@@ -443,23 +619,11 @@ export function RiskMap({
     };
   }, [liveLocation, highRiskRoads, cooldowns, isSpeechSupported, isTravelling]);
 
-  // ✅ Handle choice modal actions
-  const handleChoiceAction = (action: string, coords: [number, number]) => {
-    setShowChoiceModal(false);
-
-    if (action === "startTravel") {
-      // Set the pinned location as starting point for travel
-      handleStartTravel(coords);
-    }
-
-    onChooseAction?.(action, coords);
-  };
-
   return (
     <div className="space-y-3 relative">
       <Card
         className={`${
-          isFullScreen ? "h-[80vh] rounded-2xl" : "h-[80vh] rounded-2xl"
+          isFullScreen ? "h-[73vh] rounded-2xl" : "h-[73vh] rounded-2xl"
         } calm-shadow border-border overflow-hidden relative transition-all duration-300`}
       >
         <div className="absolute bottom-3 right-3 z-[1000] flex gap-2">
@@ -555,7 +719,11 @@ export function RiskMap({
           {/* Pinned location marker */}
           {pinnedLocation && (
             <Marker position={pinnedLocation}>
-              <Popup>Pinned Location</Popup>
+              <Popup>
+                Pinned Location
+                <br />
+                {pinnedLocation[0].toFixed(5)}, {pinnedLocation[1].toFixed(5)}
+              </Popup>
             </Marker>
           )}
 
@@ -652,8 +820,6 @@ export function RiskMap({
         </MapContainer>
       </Card>
 
-      {/* Travel Controls - Only show when not in full screen */}
-
       {/* 🚨 Warning Modal */}
       {warning && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[1000]">
@@ -681,7 +847,7 @@ export function RiskMap({
         </div>
       )}
 
-      {/* 📍 Choice Modal */}
+      {/* 📍 Choice Modal - Only shows if there are NO restrictions */}
       {showChoiceModal && pinnedLocation && (
         <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[1000]">
           <div className="bg-white rounded-2xl shadow-lg p-6 max-w-sm text-center space-y-4">
@@ -689,6 +855,8 @@ export function RiskMap({
               Choose an action for this location
             </h2>
             <p className="text-sm text-gray-600">
+              📍 Pinned Location
+              <br />
               Latitude: {pinnedLocation[0].toFixed(5)} <br />
               Longitude: {pinnedLocation[1].toFixed(5)}
             </p>
@@ -703,20 +871,31 @@ export function RiskMap({
                 Destination
               </Button>
               <Button
-                className="bg-amber-500 hover:bg-amber-600 rounded-xl"
+                className="bg-red-500 hover:bg-red-600 rounded-xl flex flex-col h-auto"
                 onClick={() =>
                   handleChoiceAction("reportIncident", pinnedLocation)
                 }
               >
-                <AlertTriangle className="w-4 h-4 mr-2" /> Report Incident
+                <div className="flex items-center">
+                  <AlertTriangle className="w-4 h-4 mr-2" /> Report Accident
+                </div>
+                <div className="text-xs font-light italic -mt-3 text-wrap">
+                  May nangyaring mali, at may nasaktan o may napinsala
+                </div>
               </Button>
               <Button
-                className="bg-pink-500 hover:bg-pink-600 rounded-xl"
+                className="bg-amber-500 hover:bg-amber-600 rounded-xl flex flex-col h-auto"
                 onClick={() =>
                   handleChoiceAction("reportHighRisk", pinnedLocation)
                 }
               >
-                <Flag className="w-4 h-4 mr-2" /> Report High-Risk Road
+                <div className="flex items-center">
+                  <AlertTriangle className="w-4 h-4 mr-2" /> Report Incident
+                </div>
+                <div className="text-xs font-light italic -mt-3 text-wrap">
+                  May nangyaring mali, pero walang nasaktan o napinsala (o
+                  muntik lang)
+                </div>
               </Button>
             </div>
             <Button
@@ -725,6 +904,72 @@ export function RiskMap({
               onClick={() => setShowChoiceModal(false)}
             >
               Cancel
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* 🚫 Direct Restriction Warning Modal - Shows immediately when location is pinned */}
+      {showDirectRestriction && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black/50 z-[1001]">
+          <div className="bg-white rounded-2xl shadow-lg p-6 max-w-md text-center space-y-3">
+            <AlertTriangle className="mx-auto text-yellow-500 w-12 h-12" />
+            <h2 className="text-lg font-bold text-yellow-600">
+              ⚠️ Cannot Report in This Area
+            </h2>
+            <p className="text-sm text-gray-700 whitespace-pre-line text-left">
+              {restrictionMessage}
+            </p>
+
+            {pinnedLocation && (
+              <div className="mt-2 p-2 bg-gray-100 rounded-lg">
+                <p className="text-xs text-gray-600">
+                  📍 Pinned Location:
+                  <br />
+                  {pinnedLocation[0].toFixed(5)}, {pinnedLocation[1].toFixed(5)}
+                </p>
+              </div>
+            )}
+
+            {existingHighRiskRoad && (
+              <div className="mt-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200 text-left">
+                <h4 className="font-semibold text-yellow-700 mb-1">
+                  📌 Existing High Risk Road:
+                </h4>
+                <p className="text-sm text-yellow-800">
+                  <strong>Title:</strong> {existingHighRiskRoad.title}
+                  <br />
+                  <strong>Description:</strong>{" "}
+                  {existingHighRiskRoad.description}
+                  <br />
+                  <strong>Type:</strong>{" "}
+                  {existingHighRiskRoad.type === "other"
+                    ? existingHighRiskRoad.otherType
+                    : existingHighRiskRoad.type}
+                  <br />
+                  <strong>Status:</strong> {existingHighRiskRoad.status}
+                  <br />
+                  <strong>Coordinates:</strong>{" "}
+                  {existingHighRiskRoad.latitude?.toFixed(5)},{" "}
+                  {existingHighRiskRoad.longitude?.toFixed(5)}
+                </p>
+              </div>
+            )}
+
+            <div className="text-xs text-gray-500 mt-3">
+              <strong>📋 Reporting Rules:</strong>
+              <br />
+              1. ⏱️ 30-second cooldown between reports
+              <br />
+              2. 📍 No reporting within 100m of existing high risk roads
+              <br />
+              3. 🎯 One report per incident/area only
+            </div>
+            <Button
+              className="bg-yellow-600 hover:bg-yellow-700 text-white rounded-xl mt-3"
+              onClick={() => setShowDirectRestriction(false)}
+            >
+              OK, I Understand
             </Button>
           </div>
         </div>

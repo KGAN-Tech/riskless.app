@@ -11,17 +11,6 @@ export default function LoginPage() {
             <Shield className="h-6 w-6 text-primary" />
             Riskless
           </div>
-          {/* <nav className="hidden sm:flex gap-6 text-sm font-medium">
-            <a href="/" className="hover:text-primary transition">
-              Home
-            </a>
-            <a href="/about" className="hover:text-primary transition">
-              About Us
-            </a>
-            <a href="/contact" className="hover:text-primary transition">
-              Contact
-            </a>
-          </nav> */}
         </div>
       </header>
 
