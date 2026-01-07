@@ -527,7 +527,7 @@ export function ProfilePage() {
               placeholder="Enter last name"
             />
           </div>
-          <div>
+          {/* <div>
             <Label className="text-xs text-muted-foreground">
               Extension Name
             </Label>
@@ -539,7 +539,7 @@ export function ProfilePage() {
               className="border-border rounded-2xl"
               placeholder="e.g., Jr., Sr., III"
             />
-          </div>
+          </div> */}
           <Button
             onClick={handleSavePersonalInfo}
             className="w-full bg-primary hover:bg-primary/90 rounded-2xl"

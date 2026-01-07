@@ -1112,7 +1112,7 @@ export default function ReportPage() {
               )}
             </div>
 
-            <div>
+            {/* <div>
               <Label htmlFor="tags">Tags (comma separated)</Label>
               <Input
                 id="tags"
@@ -1122,7 +1122,7 @@ export default function ReportPage() {
                 }
                 placeholder="tag1, tag2, tag3"
               />
-            </div>
+            </div> */}
 
             {/* Road Creation Section */}
             <div className="border-t pt-4">
@@ -1350,10 +1350,10 @@ export default function ReportPage() {
                 </div>
               )}
 
-              <div>
+              {/* <div>
                 <p className="font-semibold">Tags</p>
                 <p>{selected.tags?.join(", ") || "None"}</p>
-              </div>
+              </div> */}
 
               {selected.images?.length > 0 && (
                 <div>
