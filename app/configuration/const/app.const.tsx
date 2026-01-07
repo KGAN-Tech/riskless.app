@@ -5,13 +5,13 @@ export const APP_HOSTING = [
     key: "local1",
     type: "local" as EnvType,
     client: "http://localhost:5173",
-    server: "https://zero-api-aa3a0074fb47.herokuapp.com/api",
+    server: "https://grid-sandbox-ffa8afd7c774.herokuapp.com/api",
   },
   {
     key: "dev1",
     type: "development" as EnvType,
     client: "https://riskless-capstone.web.app",
-    server: "https://zero-api-aa3a0074fb47.herokuapp.com/api",
+    server: "https://grid-sandbox-ffa8afd7c774.herokuapp.com/api",
   },
 ];
 
