@@ -27,4 +27,7 @@ export default defineConfig({
     tailwindcss(),
     devtoolsJsonHandler(),
   ],
+  optimizeDeps: {
+    exclude: ["canvg"],
+  },
 });

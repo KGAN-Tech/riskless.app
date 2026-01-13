@@ -24,6 +24,8 @@ import {
   SelectItem,
 } from "@/components/atoms/select";
 
+import { getUserFromLocalStorage } from "~/app/utils/auth.helper";
+
 type NotificationType = "unknown" | "app_update" | "promotion" | "news";
 
 export default function NotificationPage() {
@@ -71,6 +73,7 @@ export default function NotificationPage() {
           ? formData.tags.split(",").map((t) => t.trim())
           : [],
         type: formData.type,
+        createdById: getUserFromLocalStorage().user?.id, // Assume a function to get current user ID
       };
 
       if (formData.id) {
@@ -150,7 +153,7 @@ export default function NotificationPage() {
             <thead className="bg-muted/50">
               <tr className="text-left">
                 <th className="px-4 py-3 font-medium">Title</th>
-                <th className="px-4 py-3 font-medium">Description</th>
+
                 <th className="px-4 py-3 font-medium">Type</th>
                 <th className="px-4 py-3 font-medium">Created By</th>
                 <th className="px-4 py-3 font-medium">Created At</th>

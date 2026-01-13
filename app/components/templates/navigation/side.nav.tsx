@@ -80,7 +80,7 @@ export default function SidebarV2({ isOpen, setIsOpen }: AdminSidebarProps) {
               <p className="text-sm text-gray-500">
                 {" "}
                 {user?.role === "super_admin"
-                  ? "Super Admin"
+                  ? "ADMIN CONTROL PANEL"
                   : user?.facility?.name || "No Organization"}
               </p>
             </h1>

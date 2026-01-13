@@ -26,6 +26,8 @@ import {
 import { Map } from "lucide-react";
 import { getUserFromLocalStorage } from "~/app/utils/auth.helper";
 import { facilityService } from "~/app/services/facility.service";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 // Alternative simpler approach
 interface ReportTypeDefinition {
@@ -391,11 +393,18 @@ interface ReportForm {
   roadMapLink?: string;
 }
 
+/* ---------------- DATE FILTER TYPES ---------------- */
+type DateFilter = "all" | "today" | "week" | "year" | "range";
+
 export default function ReportPage() {
   const [reports, setReports] = useState<Report[]>([]);
   const [facilities, setFacilities] = useState<Facility[]>([]);
   const [facilitySearch, setFacilitySearch] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
+  /* -------- DATE FILTER STATE -------- */
+  const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [formData, setFormData] = useState<ReportForm>({
     id: "",
     title: "",
@@ -618,6 +627,71 @@ export default function ReportPage() {
     setFacilities([]);
   };
 
+  /* -------- DATE FILTER LOGIC -------- */
+  const filteredReports = () => {
+    const now = new Date();
+
+    return reports.filter((r) => {
+      const created = new Date(r.createdAt);
+
+      if (dateFilter === "today") {
+        return created.toDateString() === now.toDateString();
+      }
+
+      if (dateFilter === "week") {
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+        return created >= weekAgo;
+      }
+
+      if (dateFilter === "year") {
+        return created.getFullYear() === now.getFullYear();
+      }
+
+      if (dateFilter === "range") {
+        if (!startDate || !endDate) return true;
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        return created >= start && created <= end;
+      }
+
+      return true;
+    });
+  };
+
+  /* -------- EXPORT PDF -------- */
+  const exportPDF = () => {
+    const data = filteredReports().length ? filteredReports() : reports;
+
+    if (data.length === 0) {
+      alert("No data to export");
+      return;
+    }
+
+    const doc = new jsPDF("landscape");
+
+    doc.setFontSize(14);
+    doc.text("Incident Report Table", 14, 15);
+
+    autoTable(doc, {
+      startY: 22,
+      head: [["Title", "Type", "Status", "Road", "Facility", "Created Date"]],
+      body: data.map((r) => [
+        r.title,
+        r.type.replaceAll("_", " "),
+        r.status.replaceAll("_", " "),
+        r.road?.title ?? "-",
+        r.facility?.name ?? "-",
+        new Date(r.createdAt).toLocaleDateString(),
+      ]),
+    });
+
+    doc.save("reports.pdf");
+  };
+
   const handleEdit = (r: Report) => {
     console.log("Editing report:", r);
     console.log("Road data:", r.road);
@@ -819,6 +893,9 @@ export default function ReportPage() {
     <div className="p-6 space-y-4">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-semibold">Report Management</h1>
+
+        {/* -------- FILTER BAR -------- */}
+
         <div className="flex items-center gap-4">
           {/* {currentUser && (
             <div className="text-sm text-gray-600">
@@ -837,7 +914,42 @@ export default function ReportPage() {
           <Button onClick={() => setOpen(true)}>New Report</Button>
         </div>
       </div>
+      <div className="flex flex-wrap gap-2 items-end">
+        <Select
+          value={dateFilter}
+          onValueChange={(v) => setDateFilter(v as DateFilter)}
+        >
+          <SelectTrigger className="w-40">
+            <SelectValue placeholder="Date Filter" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All</SelectItem>
+            <SelectItem value="today">Today</SelectItem>
+            <SelectItem value="week">This Week</SelectItem>
+            <SelectItem value="year">This Year</SelectItem>
+            <SelectItem value="range">Date Range</SelectItem>
+          </SelectContent>
+        </Select>
 
+        {dateFilter === "range" && (
+          <>
+            <Input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <Input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+            />
+          </>
+        )}
+
+        <Button variant="outline" onClick={exportPDF}>
+          Export PDF
+        </Button>
+      </div>
       <div className="flex items-center gap-2">
         <Input
           placeholder="Search reports by title, description, or tags..."
