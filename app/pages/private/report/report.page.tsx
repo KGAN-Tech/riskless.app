@@ -1,4 +1,4 @@
-import { useEffect, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useState, type ChangeEvent } from "react";
 import { reportService } from "@/services/report.service";
 import {
   Card,
@@ -437,34 +437,76 @@ export default function ReportPage() {
 
   const currentUser = getUserFromLocalStorage()?.user;
 
+  /* -------- DATE FILTER LOGIC -------- */
+  const applyDateFilter = () => {
+    const now = new Date();
+
+    return reports.filter((r) => {
+      const created = new Date(r.createdAt);
+
+      if (dateFilter === "today") {
+        return created.toDateString() === now.toDateString();
+      }
+
+      if (dateFilter === "week") {
+        const weekAgo = new Date();
+        weekAgo.setDate(now.getDate() - 7);
+        return created >= weekAgo;
+      }
+
+      if (dateFilter === "year") {
+        return created.getFullYear() === now.getFullYear();
+      }
+
+      if (dateFilter === "range") {
+        if (!startDate || !endDate) return true;
+
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+
+        return created >= start && created <= end;
+      }
+
+      return true;
+    });
+  };
+
   const loadReports = async () => {
     setLoading(true);
+
     try {
       const user = getUserFromLocalStorage()?.user;
-      const params: any = { query };
-      if (query) params.query = query;
 
-      // Server-side filtering approach (recommended)
+      // Build query params
+      const params: any = {};
+
+      if (query) {
+        params.query = query;
+      }
+
+      // Server-side facility filtering (preferred)
       if (user?.role === "admin" && user?.facilityId) {
         params.facilityId = user.facilityId;
       }
 
+      // Fetch reports
       const res = await reportService.getAll(params);
 
-      // Client-side filtering as fallback
-      let filteredReports = res.data || [];
+      // Fallback client-side filtering
+      let result: Report[] = res.data || [];
 
+      // Apply client-side facility filter ONLY if server didn't filter
       if (user?.role === "admin" && user?.facilityId && !params.facilityId) {
-        // Only apply client-side filtering if server doesn't support facilityId param
-        filteredReports = filteredReports.filter(
-          (report: Report) => report.facilityId === user.facilityId
+        result = result.filter(
+          (report) => report.facilityId === user.facilityId
         );
       }
 
-      setReports(filteredReports);
+      setReports(result);
       setTotalPages(res.totalPages || 1);
-    } catch (err) {
-      console.error("Error loading reports:", err);
+    } catch (error) {
+      console.error("Error loading reports:", error);
     } finally {
       setLoading(false);
     }
@@ -502,6 +544,13 @@ export default function ReportPage() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [facilitySearch]);
+
+  // import { useMemo } from "react";
+
+  const visibleReports = useMemo(
+    () => applyDateFilter(),
+    [reports, dateFilter, startDate, endDate]
+  );
 
   const handleFacilitySelect = (facility: Facility) => {
     setFormData((prev) => ({
@@ -627,47 +676,10 @@ export default function ReportPage() {
     setFacilities([]);
   };
 
-  /* -------- DATE FILTER LOGIC -------- */
-  const filteredReports = () => {
-    const now = new Date();
-
-    return reports.filter((r) => {
-      const created = new Date(r.createdAt);
-
-      if (dateFilter === "today") {
-        return created.toDateString() === now.toDateString();
-      }
-
-      if (dateFilter === "week") {
-        const weekAgo = new Date();
-        weekAgo.setDate(now.getDate() - 7);
-        return created >= weekAgo;
-      }
-
-      if (dateFilter === "year") {
-        return created.getFullYear() === now.getFullYear();
-      }
-
-      if (dateFilter === "range") {
-        if (!startDate || !endDate) return true;
-
-        const start = new Date(startDate);
-        const end = new Date(endDate);
-        end.setHours(23, 59, 59, 999);
-
-        return created >= start && created <= end;
-      }
-
-      return true;
-    });
-  };
-
   /* -------- EXPORT PDF -------- */
   const exportPDF = () => {
-    const data = filteredReports().length ? filteredReports() : reports;
-
-    if (data.length === 0) {
-      alert("No data to export");
+    if (visibleReports.length === 0) {
+      alert("No data to export for the selected date filter");
       return;
     }
 
@@ -676,10 +688,19 @@ export default function ReportPage() {
     doc.setFontSize(14);
     doc.text("Incident Report Table", 14, 15);
 
+    doc.setFontSize(10);
+    doc.text(
+      `Filter: ${dateFilter.toUpperCase()}${
+        dateFilter === "range" ? ` (${startDate} to ${endDate})` : ""
+      }`,
+      14,
+      20
+    );
+
     autoTable(doc, {
-      startY: 22,
+      startY: 24,
       head: [["Title", "Type", "Status", "Road", "Facility", "Created Date"]],
-      body: data.map((r) => [
+      body: visibleReports.map((r) => [
         r.title,
         r.type.replaceAll("_", " "),
         r.status.replaceAll("_", " "),
@@ -980,7 +1001,7 @@ export default function ReportPage() {
           </thead>
 
           <tbody>
-            {reports.length === 0 && !loading ? (
+            {visibleReports.length === 0 && !loading ? (
               <tr>
                 <td
                   colSpan={8}
@@ -990,7 +1011,7 @@ export default function ReportPage() {
                 </td>
               </tr>
             ) : (
-              reports.map((r) => (
+              visibleReports.map((r) => (
                 <tr
                   key={r.id}
                   className="border-t transition hover:bg-muted/30"
