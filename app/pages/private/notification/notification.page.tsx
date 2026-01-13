@@ -46,7 +46,7 @@ export default function NotificationPage() {
   const loadNotifications = async () => {
     setLoading(true);
     try {
-      const res = await notificationService.getAll({ query });
+      const res = await notificationService.getAll({ query, fields: "user" });
       setNotifications(res.data || []);
     } catch (err) {
       console.error("Error loading notifications:", err);
@@ -145,40 +145,79 @@ export default function NotificationPage() {
           <p className="text-gray-500">Loading notifications...</p>
         </div>
       ) : (
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {notifications.length === 0 ? (
-            <p className="text-gray-500">No notifications found.</p>
-          ) : (
-            notifications.map((n) => (
-              <Card key={n.id} className="shadow-md">
-                <CardHeader>
-                  <CardTitle>{n.title}</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <p className="text-sm text-gray-600 mb-2">
-                    {n.description || "No description"}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    <b>Type:</b> {n.type} <br />
-                  </p>
+        <div className="overflow-x-auto rounded-2xl border bg-background shadow-sm">
+          <table className="w-full text-sm border-collapse">
+            <thead className="bg-muted/50">
+              <tr className="text-left">
+                <th className="px-4 py-3 font-medium">Title</th>
+                <th className="px-4 py-3 font-medium">Description</th>
+                <th className="px-4 py-3 font-medium">Type</th>
+                <th className="px-4 py-3 font-medium">Created By</th>
+                <th className="px-4 py-3 font-medium">Created At</th>
+                <th className="px-4 py-3 text-right font-medium">Actions</th>
+              </tr>
+            </thead>
 
-                  <div className="flex gap-2 mt-4">
-                    <Button size="sm" onClick={() => handleEdit(n)}>
-                      Edit
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleDelete(n.id)}
-                      disabled={deletingId === n.id}
-                    >
-                      {deletingId === n.id ? "Deleting..." : "Delete"}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          )}
+            <tbody>
+              {notifications.length === 0 && !loading ? (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-10 text-center text-muted-foreground"
+                  >
+                    No notifications found.
+                  </td>
+                </tr>
+              ) : (
+                notifications.map((n) => (
+                  <tr
+                    key={n.id}
+                    className="border-t transition hover:bg-muted/30"
+                  >
+                    {/* Title */}
+                    <td className="px-4 py-3 font-medium line-clamp-1">
+                      {n.title}
+                    </td>
+
+                    {/* Description */}
+                    <td className="px-4 py-3 text-xs text-muted-foreground line-clamp-2">
+                      {n.description || "No description"}
+                    </td>
+
+                    {/* Type */}
+                    <td className="px-4 py-3">{n.type.replace("_", " ")}</td>
+
+                    {/* Created By */}
+                    <td className="px-4 py-3">
+                      {n.createdBy?.userName || "Unknown"}
+                    </td>
+
+                    {/* Created At */}
+                    <td className="px-4 py-3 text-xs text-muted-foreground">
+                      {new Date(n.createdAt).toLocaleDateString()}
+                    </td>
+
+                    {/* Actions */}
+                    <td className="px-4 py-3">
+                      <div className="flex justify-end gap-2">
+                        <Button size="sm" onClick={() => handleEdit(n)}>
+                          Edit
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => handleDelete(n.id)}
+                          disabled={deletingId === n.id}
+                        >
+                          {deletingId === n.id ? "Deleting..." : "Delete"}
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 

@@ -471,7 +471,10 @@ export default function ReportPage() {
       return;
     }
     try {
-      const res = await facilityService.getAll({ query: searchQuery });
+      const res = await facilityService.getAll({
+        query: searchQuery,
+        limit: 999,
+      });
       setFacilities(res?.data || []);
     } catch (err) {
       console.error("Error fetching facilities:", err);
@@ -849,98 +852,147 @@ export default function ReportPage() {
 
       {loading && <div className="text-center">Loading reports...</div>}
 
-      <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {reports.length === 0 && !loading ? (
-          <p className="text-gray-500 col-span-full text-center">
-            No reports found.
-          </p>
-        ) : (
-          reports.map((r) => (
-            <Card key={r.id} className="shadow-md">
-              <CardHeader>
-                <CardTitle className="text-lg">{r.title}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-gray-600 mb-2 line-clamp-2">
-                  {r.description}
-                </p>
-                <div className="text-xs text-gray-500 space-y-1">
-                  <p>
-                    <b>Type:</b> {formatReportType(r.type)}
-                  </p>
-                  <p>
-                    <b>Status:</b> {r.status.replace("_", " ")}
-                  </p>
-                  <p>
-                    <b>Created by:</b> {r.createdBy?.userName || "Unknown"}
-                  </p>
-                  <p>
-                    <b>Road:</b> {r.road?.title || "Not assigned"}
-                  </p>
-                  <p>
-                    <b>Facility:</b> {r.facility?.name || "Not assigned"}
-                  </p>
-                  <p>
-                    <b>Tags:</b> {r.tags?.join(", ") || "None"}
-                  </p>
-                  <p>
-                    <b>Created:</b> {new Date(r.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
+      <div className="overflow-x-auto rounded-2xl border bg-background shadow-sm">
+        <table className="w-full border-collapse text-sm">
+          <thead className="bg-muted/50">
+            <tr className="text-left">
+              <th className="px-4 py-3 font-medium">Title</th>
+              <th className="px-4 py-3 font-medium">Type</th>
+              <th className="px-4 py-3 font-medium">Status</th>
+              <th className="px-4 py-3 font-medium">Road</th>
+              <th className="px-4 py-3 font-medium">Facility</th>
+              <th className="px-4 py-3 font-medium">Created</th>
+              <th className="px-4 py-3 font-medium">Images</th>
+              <th className="px-4 py-3 text-right font-medium">Actions</th>
+            </tr>
+          </thead>
 
-                {r.images?.length > 0 && (
-                  <div className="mt-2">
-                    <div className="flex gap-1">
-                      {r.images.slice(0, 3).map((img, i) => (
-                        <img
-                          key={i}
-                          src={img}
-                          alt={`Preview ${i + 1}`}
-                          className="w-8 h-8 object-cover rounded border"
-                        />
-                      ))}
-                      {r.images.length > 3 && (
-                        <div className="w-8 h-8 bg-gray-200 rounded border flex items-center justify-center text-xs">
-                          +{r.images.length - 3}
-                        </div>
-                      )}
+          <tbody>
+            {reports.length === 0 && !loading ? (
+              <tr>
+                <td
+                  colSpan={8}
+                  className="px-4 py-10 text-center text-muted-foreground"
+                >
+                  No reports found.
+                </td>
+              </tr>
+            ) : (
+              reports.map((r) => (
+                <tr
+                  key={r.id}
+                  className="border-t transition hover:bg-muted/30"
+                >
+                  {/* Title + description */}
+                  <td className="px-4 py-3">
+                    <p className="font-medium line-clamp-1">{r.title}</p>
+                    <p className="text-xs text-muted-foreground line-clamp-1">
+                      {r.description}
+                    </p>
+                  </td>
+
+                  {/* Type */}
+                  <td className="px-4 py-3">{formatReportType(r.type)}</td>
+
+                  {/* Status */}
+                  <td className="px-4 py-3">
+                    <span
+                      className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium
+    ${
+      r.status === ReportStatus.resolved
+        ? "bg-green-100 text-green-700"
+        : r.status === ReportStatus.under_review
+        ? "bg-gray-200 text-gray-700"
+        : "bg-yellow-100 text-yellow-700"
+    }`}
+                    >
+                      {r.status.replace("_", " ")}
+                    </span>
+                  </td>
+
+                  {/* Road */}
+                  <td className="px-4 py-3">
+                    {r.road?.title || (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+
+                  {/* Facility */}
+                  <td className="px-4 py-3">
+                    {r.facility?.name || (
+                      <span className="text-muted-foreground">—</span>
+                    )}
+                  </td>
+
+                  {/* Created */}
+                  <td className="px-4 py-3 text-xs text-muted-foreground">
+                    {new Date(r.createdAt).toLocaleDateString()}
+                    <div>{r.createdBy?.userName || "Unknown"}</div>
+                  </td>
+
+                  {/* Images */}
+                  <td className="px-4 py-3">
+                    {r.images?.length > 0 ? (
+                      <div className="flex gap-1">
+                        {r.images.slice(0, 3).map((img, i) => (
+                          <img
+                            key={i}
+                            src={img}
+                            alt={`Preview ${i + 1}`}
+                            className="h-8 w-8 rounded border object-cover"
+                          />
+                        ))}
+                        {r.images.length > 3 && (
+                          <div className="flex h-8 w-8 items-center justify-center rounded border bg-muted text-[10px] font-medium">
+                            +{r.images.length - 3}
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">
+                        None
+                      </span>
+                    )}
+                  </td>
+
+                  {/* Actions */}
+                  <td className="px-4 py-3">
+                    <div className="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleGoToMap(r.road?.mapLink)}
+                      >
+                        Map
+                      </Button>
+                      <Button size="sm" onClick={() => handleView(r)}>
+                        View
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="secondary"
+                        onClick={() => handleEdit(r)}
+                      >
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => handleDelete(r.id)}
+                      >
+                        Delete
+                      </Button>
                     </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-4 gap-2 mt-4">
-                  <Button
-                    size="sm"
-                    onClick={() => handleGoToMap(r.road?.mapLink)}
-                  >
-                    Go to Map
-                  </Button>
-                  <Button size="sm" onClick={() => handleView(r)}>
-                    View
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleEdit(r)}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="destructive"
-                    onClick={() => handleDelete(r.id)}
-                  >
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
       </div>
 
       {/* Pagination */}
-      {totalPages > 1 && (
+      {/* {totalPages > 1 && (
         <div className="flex justify-center items-center gap-2">
           <Button
             variant="outline"
@@ -962,7 +1014,7 @@ export default function ReportPage() {
             Next
           </Button>
         </div>
-      )}
+      )} */}
 
       {/* CREATE / EDIT DIALOG */}
       <Dialog open={open} onOpenChange={setOpen}>
