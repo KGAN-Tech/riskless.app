@@ -236,7 +236,7 @@ type ReportTypeCategory =
 
 // Helper function to get report types by category
 const getReportTypesByCategory = (
-  category?: string
+  category?: string,
 ): ReportTypeDefinition[] => {
   const types = Object.values(ReportType);
   if (category) {
@@ -254,7 +254,7 @@ const getCommonReportTypes = () => {
 const getSortedReportTypes = () => {
   const commonTypes = getCommonReportTypes();
   const otherTypes = Object.values(ReportType).filter(
-    (type) => !type.category.includes("common")
+    (type) => !type.category.includes("common"),
   );
   return [...commonTypes, ...otherTypes];
 };
@@ -262,7 +262,7 @@ const getSortedReportTypes = () => {
 // Helper function to get all unique categories
 const getAllCategories = (): string[] => {
   const allCategories = Object.values(ReportType).flatMap(
-    (type) => type.category
+    (type) => type.category,
   );
   return Array.from(new Set(allCategories));
 };
@@ -490,6 +490,8 @@ export default function ReportPage() {
         params.facilityId = user.facilityId;
       }
 
+      params.limit = "999";
+
       // Fetch reports
       const res = await reportService.getAll(params);
 
@@ -499,7 +501,7 @@ export default function ReportPage() {
       // Apply client-side facility filter ONLY if server didn't filter
       if (user?.role === "admin" && user?.facilityId && !params.facilityId) {
         result = result.filter(
-          (report) => report.facilityId === user.facilityId
+          (report) => report.facilityId === user.facilityId,
         );
       }
 
@@ -549,7 +551,7 @@ export default function ReportPage() {
 
   const visibleReports = useMemo(
     () => applyDateFilter(),
-    [reports, dateFilter, startDate, endDate]
+    [reports, dateFilter, startDate, endDate],
   );
 
   const handleFacilitySelect = (facility: Facility) => {
@@ -580,7 +582,7 @@ export default function ReportPage() {
         !formData.roadTitle
       ) {
         alert(
-          "Title, description, road location, road title, road longitude, road latitude and road map link are required"
+          "Title, description, road location, road title, road longitude, road latitude and road map link are required",
         );
         return;
       }
@@ -694,7 +696,7 @@ export default function ReportPage() {
         dateFilter === "range" ? ` (${startDate} to ${endDate})` : ""
       }`,
       14,
-      20
+      20,
     );
 
     autoTable(doc, {
@@ -791,7 +793,7 @@ export default function ReportPage() {
 
   const formatReportType = (typeValue: string) => {
     const typeEntry = Object.values(ReportType).find(
-      (t) => t.value === typeValue
+      (t) => t.value === typeValue,
     );
     if (typeEntry) {
       return typeEntry.value
@@ -804,7 +806,7 @@ export default function ReportPage() {
 
   // Add this function to extract coordinates from Google Maps link
   const extractCoordinatesFromMapLink = (
-    mapLink: string
+    mapLink: string,
   ): { latitude: number | undefined; longitude: number | undefined } => {
     try {
       // Parse the URL
@@ -893,7 +895,7 @@ export default function ReportPage() {
       } else if (formData.roadTitle || formData.roadLocation) {
         // If we have address info, search for it
         const searchQuery = encodeURIComponent(
-          `${formData.roadTitle} ${formData.roadLocation}`.trim()
+          `${formData.roadTitle} ${formData.roadLocation}`.trim(),
         );
         const googleMapsUrl = `https://www.google.com/maps/search/?api=1&query=${searchQuery}`;
         window.open(googleMapsUrl, "_blank");
